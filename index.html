@@ -1,0 +1,2805 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>GOLPES - Rummy Peruano (Baraja Inglesa)</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- PeerJS (WebRTC P2P) -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Outfit', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      overflow-x: hidden;
+    }
+    .font-game {
+      font-family: 'Fredoka', cursive, sans-serif;
+    }
+    .felt-table {
+      background: radial-gradient(circle at center, #064e3b 0%, #022c22 70%, #011913 100%);
+      box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.9);
+    }
+    .card-base {
+      transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+      background: #ffffff;
+      color: #0f172a;
+    }
+    .card-hover-effect:hover {
+      transform: translateY(-10px) scale(1.04) !important;
+      z-index: 40 !important;
+    }
+    .card-selected {
+      transform: translateY(-18px) scale(1.07) !important;
+      box-shadow: 0 0 22px #f59e0b, 0 0 12px #fef08a !important;
+      border-color: #f59e0b !important;
+      z-index: 50 !important;
+    }
+    .golpe-glow-btn {
+      box-shadow: 0 0 25px #ef4444, 0 0 15px #f59e0b;
+      animation: pulseGolpe 1.1s infinite alternate cubic-bezier(0.4, 0, 0.6, 1);
+    }
+    @keyframes pulseGolpe {
+      0% { transform: scale(1); box-shadow: 0 0 15px #ef4444; }
+      100% { transform: scale(1.06); box-shadow: 0 0 32px #f59e0b, 0 0 20px #ef4444; }
+    }
+    .card-red {
+      color: #dc2626;
+    }
+    .card-black {
+      color: #0f172a;
+    }
+    @keyframes toastIn {
+      from { transform: translateY(-100%) scale(0.9); opacity: 0; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    .toast-anim {
+      animation: toastIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    @keyframes meldDrop {
+      0% { transform: scale(1.25) translateY(-12px); opacity: 0; }
+      100% { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    .meld-card-anim {
+      animation: meldDrop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    @keyframes reactionPop {
+      0% { transform: scale(0) translateY(10px) rotate(-12deg); opacity: 0; }
+      20% { transform: scale(1.25) translateY(-4px) rotate(8deg); opacity: 1; }
+      40% { transform: scale(1) translateY(0) rotate(-4deg); opacity: 1; }
+      80% { transform: scale(1.05) translateY(-2px) rotate(2deg); opacity: 1; }
+      100% { transform: scale(0.8) translateY(-14px); opacity: 0; }
+    }
+    .reaction-bubble-anim {
+      animation: reactionPop 3.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    .card-back-pattern {
+      background: linear-gradient(135deg, #1e3a8a 0%, #312e81 50%, #0f172a 100%);
+      background-image: radial-gradient(#6366f1 1px, transparent 1px), radial-gradient(#fbbf24 1px, #1e1b4b 1px);
+      background-size: 8px 8px;
+      background-position: 0 0, 4px 4px;
+    }
+    @keyframes handBob {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-3px); }
+    }
+    .player-hands-bob {
+      animation: handBob 3s ease-in-out infinite;
+    }
+    @keyframes floatCardSlow {
+      0%, 100% { transform: translateY(0px) rotate(var(--tw-rotate, 0deg)); }
+      50% { transform: translateY(-10px) rotate(var(--tw-rotate, 0deg)); }
+    }
+    .floating-hero-card {
+      animation: floatCardSlow 4s ease-in-out infinite;
+    }
+    .hero-glow-bg {
+      background:
+        radial-gradient(circle at 20% 20%, rgba(245, 158, 11, 0.18) 0%, transparent 45%),
+        radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.22) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, #064e3b 0%, #022c22 55%, #020617 100%);
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(51, 65, 85, 0.8);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col justify-between bg-slate-950 text-slate-100 relative">
+
+  <!-- FLOATING TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-full max-w-md px-4 pointer-events-none"></div>
+
+  <!-- Sound Toggle & Rules Floating Buttons -->
+  <div class="fixed top-3 right-3 z-40 flex items-center gap-2">
+    <button onclick="toggleRulesModal()" class="bg-slate-900/90 hover:bg-slate-800 backdrop-blur border border-slate-700 text-amber-400 p-2.5 rounded-full shadow-lg transition flex items-center justify-center w-10 h-10" title="Reglas del Juego">
+      <i class="fas fa-book-open text-sm"></i>
+    </button>
+    <button id="soundToggleBtn" onclick="toggleSound()" class="bg-slate-900/90 hover:bg-slate-800 backdrop-blur border border-slate-700 text-slate-200 p-2.5 rounded-full shadow-lg transition flex items-center justify-center w-10 h-10" title="Sonido On/Off">
+      <i id="soundIcon" class="fas fa-volume-up text-sm text-amber-400"></i>
+    </button>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- SCREEN 1: WELCOME & MENU PRINCIPAL         -->
+  <!-- ========================================== -->
+  <div id="welcomeScreen" class="min-h-screen w-full flex flex-col items-center justify-center p-4 hero-glow-bg relative overflow-hidden">
+    
+    <!-- Decorative Background Floating Casino Elements -->
+    <div class="pointer-events-none select-none absolute inset-0 overflow-hidden opacity-25">
+      <div class="absolute top-10 left-10 text-7xl text-amber-400/40 rotate-12">♠</div>
+      <div class="absolute bottom-12 left-16 text-8xl text-red-500/40 -rotate-12">♥</div>
+      <div class="absolute top-16 right-14 text-8xl text-red-500/40 rotate-12">♦</div>
+      <div class="absolute bottom-10 right-12 text-7xl text-emerald-400/40 -rotate-12">♣</div>
+    </div>
+
+    <div class="max-w-lg w-full bg-slate-900/90 border-2 border-amber-500/30 rounded-[2rem] p-6 md:p-8 shadow-[0_0_60px_rgba(0,0,0,0.85)] backdrop-blur-xl relative overflow-hidden z-10">
+      
+      <!-- Top Ambient Gold Glow Bar -->
+      <div class="absolute -top-20 left-1/2 -translate-x-1/2 w-72 h-32 bg-amber-500/25 blur-3xl pointer-events-none"></div>
+
+      <!-- Showcase Floating Fan of Cards + Crown Emblem -->
+      <div class="relative flex flex-col items-center justify-center mb-5 pt-2">
+        <div class="flex items-center justify-center mb-3 relative h-24">
+          <!-- Left Card: 2 Duck (El Pato) -->
+          <div style="--tw-rotate: -16deg; animation-delay: 0s;" class="floating-hero-card w-14 h-20 bg-white rounded-xl border-2 border-amber-400 shadow-xl flex flex-col justify-between p-1.5 text-red-600 -mr-3 z-10">
+            <div class="flex justify-between items-center text-[10px] font-black leading-none"><span>2</span><span>♥</span></div>
+            <div class="text-center text-lg leading-none">🦆</div>
+            <div class="text-[8px] font-black text-center bg-amber-100 text-amber-900 rounded px-0.5">PATO</div>
+          </div>
+          <!-- Center Card: Ace of Spades -->
+          <div style="--tw-rotate: 0deg; animation-delay: 0.5s;" class="floating-hero-card w-16 h-22 bg-gradient-to-b from-white to-slate-100 rounded-xl border-2 border-yellow-400 shadow-2xl flex flex-col justify-between p-1.5 text-slate-900 z-20 -translate-y-2">
+            <div class="flex justify-between items-center text-xs font-black leading-none"><span>A</span><span>♠</span></div>
+            <div class="text-center text-3xl font-black leading-none text-slate-900">♠</div>
+            <div class="flex justify-between items-center text-xs font-black leading-none rotate-180"><span>A</span><span>♠</span></div>
+          </div>
+          <!-- Right Card: King of Diamonds -->
+          <div style="--tw-rotate: 16deg; animation-delay: 1s;" class="floating-hero-card w-14 h-20 bg-white rounded-xl border-2 border-emerald-400 shadow-xl flex flex-col justify-between p-1.5 text-red-600 -ml-3 z-10">
+            <div class="flex justify-between items-center text-[10px] font-black leading-none"><span>K</span><span>♦</span></div>
+            <div class="text-center text-2xl font-black leading-none">♦</div>
+            <div class="flex justify-between items-center text-[10px] font-black leading-none rotate-180"><span>K</span><span>♦</span></div>
+          </div>
+        </div>
+
+        <!-- Main Title: GOLPES -->
+        <div class="inline-flex items-center justify-center gap-2.5">
+          <span class="text-2xl sm:text-3xl text-red-500 drop-shadow">♥</span>
+          <h1 class="text-5xl sm:text-6xl font-black font-game tracking-wider bg-gradient-to-b from-yellow-200 via-amber-400 to-amber-600 bg-clip-text text-transparent drop-shadow-[0_4px_12px_rgba(245,158,11,0.4)]">
+            GOLPES
+          </h1>
+          <span class="text-2xl sm:text-3xl text-emerald-400 drop-shadow">♠</span>
+        </div>
+
+        <div class="mt-1 inline-flex items-center gap-2 bg-emerald-950/90 border border-emerald-500/40 px-3.5 py-1 rounded-full shadow-inner">
+          <span class="text-xs font-extrabold text-emerald-300 tracking-wide uppercase">Rummy Peruano Oficial</span>
+          <span class="text-slate-500">•</span>
+          <span class="text-xs font-bold text-amber-300">🦆 Pato 2 o 4+3</span>
+        </div>
+
+        <!-- Quick Visual Rule Pill -->
+        <div class="mt-3 w-full grid grid-cols-2 gap-2 text-left bg-slate-950/75 border border-slate-800 p-2.5 rounded-2xl">
+          <div class="flex items-center gap-2 bg-slate-900/90 p-2 rounded-xl border border-amber-500/30">
+            <span class="text-2xl">🦆</span>
+            <div class="leading-tight">
+              <p class="text-[11px] font-black text-amber-300">GOLPE CON PATO</p>
+              <p class="text-[10px] text-slate-300">2 grupos de 3 + <strong>2</strong> (tras 1 vuelta)</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 bg-slate-900/90 p-2 rounded-xl border border-emerald-500/30">
+            <span class="text-2xl">👑</span>
+            <div class="leading-tight">
+              <p class="text-[11px] font-black text-emerald-300">GOLPE LIMPIO</p>
+              <p class="text-[10px] text-slate-300">1 grupo de <strong>4</strong> + 1 de <strong>3</strong></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Player Profile Config -->
+      <div class="space-y-4 mb-5">
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Tu Nombre de Jugador</label>
+          <input type="text" id="playerNameInput" maxlength="12" placeholder="Tu nombre" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 text-sm font-semibold">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Elige tu Avatar</label>
+          <div id="avatarGrid" class="grid grid-cols-6 gap-2"></div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="flex bg-slate-800/80 p-1 rounded-xl mb-5 border border-slate-700/50">
+        <button id="tabBotBtn" onclick="switchWelcomeTab('bot')" class="flex-1 py-2 text-xs font-bold rounded-lg transition bg-amber-500 text-slate-950 shadow">
+          <i class="fas fa-robot mr-1"></i> Vs Bot (Offline)
+        </button>
+        <button id="tabCreateBtn" onclick="switchWelcomeTab('create')" class="flex-1 py-2 text-xs font-bold rounded-lg transition text-slate-400 hover:text-white">
+          <i class="fas fa-plus-circle mr-1"></i> Crear Sala
+        </button>
+        <button id="tabJoinBtn" onclick="switchWelcomeTab('join')" class="flex-1 py-2 text-xs font-bold rounded-lg transition text-slate-400 hover:text-white">
+          <i class="fas fa-sign-in-alt mr-1"></i> Unirse
+        </button>
+      </div>
+
+      <!-- Tab Content: Solo Vs Bot (Instant Gameplay) -->
+      <div id="botTabContent" class="space-y-3">
+        <p class="text-xs text-slate-400 text-center font-medium">Juega al instante sin necesidad de internet ni códigos:</p>
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="startSoloBotGame(2)" class="bg-gradient-to-b from-slate-800 to-slate-850 hover:from-amber-600/30 hover:to-amber-500/20 border border-slate-700 hover:border-amber-400 text-slate-200 py-3 rounded-2xl text-xs font-bold transition flex flex-col items-center gap-1 shadow-lg">
+            <span class="text-2xl">👤 vs 🤖</span>
+            <span class="text-amber-300">1 vs 1</span>
+          </button>
+          <button onclick="startSoloBotGame(3)" class="bg-gradient-to-b from-slate-800 to-slate-850 hover:from-amber-600/30 hover:to-amber-500/20 border border-slate-700 hover:border-amber-400 text-slate-200 py-3 rounded-2xl text-xs font-bold transition flex flex-col items-center gap-1 shadow-lg">
+            <span class="text-2xl">👥 vs 🤖</span>
+            <span class="text-amber-300">3 Jugadores</span>
+          </button>
+          <button onclick="startSoloBotGame(4)" class="bg-gradient-to-b from-slate-800 to-slate-850 hover:from-amber-600/30 hover:to-amber-500/20 border border-slate-700 hover:border-amber-400 text-slate-200 py-3 rounded-2xl text-xs font-bold transition flex flex-col items-center gap-1 shadow-lg">
+            <span class="text-2xl">👥 vs 🤖🤖</span>
+            <span class="text-amber-300">4 Jugadores</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab Content: Create Room -->
+      <div id="createTabContent" class="space-y-3 hidden">
+        <button onclick="createRoom()" class="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 font-black py-3.5 px-6 rounded-xl shadow-lg text-base transition transform active:scale-95 flex items-center justify-center gap-2">
+          <i class="fas fa-plus-circle"></i>
+          <span>CREAR SALA MULTIJUGADOR</span>
+        </button>
+      </div>
+
+      <!-- Tab Content: Join Room -->
+      <div id="joinTabContent" class="space-y-3 hidden">
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Código de Sala (4 Letras)</label>
+          <input type="text" id="roomCodeInput" maxlength="4" placeholder="Ej. ABCD" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-center text-2xl font-black tracking-widest uppercase text-amber-400 focus:outline-none focus:border-amber-400">
+        </div>
+        <button id="btnJoinRoomSubmit" onclick="joinRoom()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black py-3.5 px-6 rounded-xl shadow-lg text-base transition transform active:scale-95 flex items-center justify-center gap-2">
+          <span id="joinBtnText">UNIRSE A LA SALA</span>
+          <i id="joinBtnIcon" class="fas fa-door-open"></i>
+        </button>
+      </div>
+
+      <!-- Network Status Indicator Badge -->
+      <div id="networkStatusBadge" class="mt-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2 bg-slate-950/60 py-1.5 px-3 rounded-full border border-slate-800">
+        <span id="netStatusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+        <span id="netStatusText">Red P2P Tolerante a Fallos Lista</span>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- SCREEN 2: SALA DE ESPERA / LOBBY           -->
+  <!-- ========================================== -->
+  <div id="lobbyScreen" class="min-h-screen w-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-slate-900 via-slate-950 to-emerald-950 hidden">
+    <div class="max-w-md w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl backdrop-blur relative">
+      
+      <!-- Room Code Card -->
+      <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 text-center mb-5">
+        <span class="text-xs uppercase font-bold text-slate-400 tracking-wider block mb-1">Código de Sala Multijugador</span>
+        <div class="flex items-center justify-center gap-3">
+          <span id="lobbyRoomCodeDisplay" class="text-4xl font-black font-game tracking-widest text-amber-400">----</span>
+          <button onclick="copyRoomCode()" title="Copiar Código" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1">
+            <i class="fas fa-copy"></i>
+            <span id="copyBtnText">Copiar</span>
+          </button>
+        </div>
+        <p class="text-xs text-slate-400 mt-2">Si un jugador sale a mitad de partida, un Bot tomará su lugar automáticamente.</p>
+      </div>
+
+      <!-- Players List -->
+      <div class="mb-5">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">
+            Jugadores Conectados <span id="playerCountBadge" class="bg-amber-900/60 text-amber-300 border border-amber-700/50 px-2 py-0.5 rounded-full text-xs ml-1">1/4</span>
+          </h3>
+          <button id="addBotBtn" onclick="addBotToLobby()" class="text-xs bg-indigo-900/60 hover:bg-indigo-800 text-indigo-300 border border-indigo-700/50 px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1">
+            <i class="fas fa-robot"></i> + Agregar Bot
+          </button>
+        </div>
+        <div id="lobbyPlayerList" class="space-y-2 max-h-52 overflow-y-auto pr-1"></div>
+      </div>
+
+      <!-- Lobby Buttons -->
+      <div class="space-y-3">
+        <button id="startGameBtn" onclick="startGameHost()" class="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 font-black py-3.5 px-6 rounded-xl shadow-lg text-base transition transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+          <i class="fas fa-play"></i>
+          <span>INICIAR PARTIDA</span>
+        </button>
+
+        <p id="lobbyWaitingMsg" class="text-center text-xs text-amber-400 font-medium hidden">
+          <i class="fas fa-spinner fa-spin mr-1"></i> Esperando a que el anfitrión inicie la partida...
+        </p>
+
+        <button onclick="leaveRoom()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 px-4 rounded-xl text-xs transition border border-slate-700">
+          <i class="fas fa-arrow-left mr-1"></i> Abandonar Sala
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- SCREEN 3: TABLERO CASINO DE JUEGO          -->
+  <!-- ========================================== -->
+  <div id="gameScreen" class="h-screen w-full flex flex-col justify-between felt-table relative overflow-hidden hidden">
+    
+    <!-- Header Controls & Room Stats -->
+    <header class="w-full bg-slate-950/90 backdrop-blur border-b border-slate-800 px-3 sm:px-4 py-2 flex items-center justify-between z-30">
+      <div class="flex items-center gap-2">
+        <div class="bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-xl text-xs font-bold text-slate-300">
+          SALA: <span id="gameRoomCode" class="text-amber-400 font-black">----</span>
+        </div>
+        <button onclick="toggleRulesModal()" class="hidden sm:flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-xl text-xs font-bold text-amber-300 transition">
+          <i class="fas fa-layer-group"></i>
+          <span>Reglas de Bajar Juegos</span>
+        </button>
+      </div>
+
+      <!--Action Banner Center -->
+      <div class="hidden md:flex items-center bg-slate-900/95 border border-emerald-500/40 px-4 py-1 rounded-full max-w-md shadow">
+        <p id="gameActionBanner" class="text-xs font-bold text-emerald-300 truncate text-center">
+          ¡Bienvenidos a GOLPES!
+        </p>
+      </div>
+
+      <!-- Controls Right -->
+      <div class="flex items-center gap-2 mr-20">
+        <!-- Didactic Legend Pill -->
+        <div class="hidden xl:flex items-center gap-2 bg-slate-900/90 border border-slate-700 px-3 py-1 rounded-xl text-[10px] font-semibold text-slate-300">
+          <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-3.5 rounded-sm card-back-pattern border border-indigo-400"></span> Cartas Ocultas</span>
+          <span class="text-slate-600">•</span>
+          <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-3.5 rounded-sm bg-white border border-emerald-400"></span> Juegos Bajados</span>
+        </div>
+        <button onclick="toggleChatDrawer()" class="relative bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1.5 rounded-xl text-xs font-bold border border-slate-700 flex items-center gap-1">
+          <i class="fas fa-comments text-amber-400"></i>
+          <span class="hidden sm:inline">Chat</span>
+          <span id="unreadChatBadge" class="hidden absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+        </button>
+        <button onclick="leaveRoom()" title="Salir de la partida (un Bot continuará por ti)" class="bg-red-900/50 hover:bg-red-800 text-red-200 border border-red-700/60 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition">
+          <i class="fas fa-door-open"></i>
+          <span class="hidden sm:inline">Salir</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Mobile Action Banner -->
+    <div class="md:hidden bg-slate-950/90 px-3 py-1 border-b border-slate-800 text-center z-20">
+      <p id="mobileActionBanner" class="text-xs font-bold text-emerald-300 truncate">
+        ¡Partida en curso!
+      </p>
+    </div>
+
+    <!-- MAIN TABLE PLAY AREA -->
+    <main class="flex-1 relative w-full flex flex-col justify-between items-center px-2 py-1 sm:p-3 z-10 overflow-y-auto">
+
+      <!-- TOP / OPPONENTS PLAYERS BAR (Shows opponents seated with hands holding card backs + reactions + lowered melds) -->
+      <div id="opponentsContainer" class="w-full max-w-6xl flex flex-wrap items-stretch justify-center gap-2.5 sm:gap-4 my-1">
+        <!-- Opponents rendered dynamically with their exposed melds, fan of card backs held by hands, and live reaction bubbles -->
+      </div>
+
+      <!-- CENTER TABLE: DRAW DECK, DISCARD PILE & TABLE EXPOSED MELDS ZONE -->
+      <div class="w-full max-w-5xl flex flex-col lg:flex-row items-center justify-center gap-4 my-auto py-1">
+        
+        <!-- DECK & DISCARD PILES -->
+        <div class="flex items-center justify-center gap-5 shrink-0 bg-slate-950/40 px-5 py-2.5 rounded-3xl border border-emerald-800/40 shadow-inner">
+          <!-- DRAW DECK (MAZO DE ROBO) -->
+          <div id="deckPile" onclick="userDrawFromDeck()" class="group relative cursor-pointer flex flex-col items-center">
+            <div class="w-16 h-24 sm:w-20 sm:h-28 bg-gradient-to-br from-blue-900 via-indigo-950 to-slate-900 border-2 border-indigo-400/70 rounded-xl shadow-2xl flex flex-col items-center justify-center relative transform group-hover:scale-105 transition">
+              <div class="w-12 h-20 sm:w-16 sm:h-24 border border-indigo-400/30 rounded-lg flex items-center justify-center bg-indigo-950/60">
+                <span class="text-xl font-black text-indigo-300 opacity-60">♠♥</span>
+              </div>
+              <span id="deckCardCount" class="absolute -bottom-2 bg-indigo-600 text-white px-2 py-0.5 rounded-full text-[11px] font-bold shadow-md">
+                38
+              </span>
+            </div>
+            <span class="text-[10px] font-bold text-indigo-200 mt-2 bg-slate-900/90 px-2 py-0.5 rounded-md border border-indigo-800">
+              MAZO (ROBAR)
+            </span>
+          </div>
+
+          <!-- DISCARD PILE (POZO DE DESCARTE) -->
+          <div id="discardPile" onclick="userDrawFromDiscard()" class="group relative cursor-pointer flex flex-col items-center">
+            <div id="discardCardTop" class="w-16 h-24 sm:w-20 sm:h-28 bg-slate-800/80 border-2 border-slate-700 border-dashed rounded-xl flex items-center justify-center transform group-hover:scale-105 transition">
+              <span class="text-xs text-slate-500 font-bold">VACÍO</span>
+            </div>
+            <span class="text-[10px] font-bold text-amber-300 mt-2 bg-slate-900/90 px-2 py-0.5 rounded-md border border-amber-800/60">
+              POZO (DESCARTE)
+            </span>
+          </div>
+        </div>
+
+        <!-- SHARED TABLE MELDS BOARD (JUEGOS BAJADOS EN LA MESA POR TODOS) -->
+        <div class="flex-1 w-full bg-slate-950/55 border border-emerald-500/30 rounded-2xl p-2.5 sm:p-3 backdrop-blur-sm min-h-[115px] max-h-[165px] overflow-y-auto shadow-inner">
+          <div class="flex items-center justify-between mb-1.5 border-b border-slate-800/80 pb-1">
+            <span class="text-[11px] font-extrabold uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
+              <i class="fas fa-clone text-amber-400"></i> Juegos Bajados en la Mesa (Visibles para todos)
+            </span>
+            <span id="totalTableMeldsCount" class="text-[10px] bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-700/50 font-bold">
+              0 Grupos
+            </span>
+          </div>
+          <div id="tableMeldsBoard" class="flex flex-wrap items-center gap-2.5">
+            <!-- Dynamically populated with every player's lowered groups -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- PLAYER HAND & CONTROLS CONTAINER -->
+      <div class="w-full max-w-5xl flex flex-col items-center gap-1.5 mb-1 z-20">
+        
+        <!-- Local Player Seat Identity + Live Reaction Bubble + Quick Emoji Reaction Bar -->
+        <div class="w-full flex flex-wrap items-center justify-between gap-2 bg-slate-950/75 border border-slate-800/90 px-3 py-1.5 rounded-2xl shadow-lg">
+          <!-- Local Player Avatar, Name & Reaction Anchor -->
+          <div class="flex items-center gap-2 relative">
+            <div id="localPlayerTurnRing" class="w-9 h-9 rounded-xl bg-slate-800 border-2 border-amber-400 flex items-center justify-center text-xl shadow">
+              <span id="localSeatAvatar">🦁</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span id="localSeatName" class="text-xs font-black text-amber-300">Tú</span>
+                <span class="text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-700/50 px-1.5 py-0.2 rounded-full font-bold">Tu Asiento</span>
+              </div>
+              <p class="text-[10px] text-slate-400 font-medium">Tus manos sosteniendo tus cartas de frente</p>
+            </div>
+            <!-- Reaction Bubble Next to Local Player Name -->
+            <div id="reaction-anchor-local" class="relative ml-2 pointer-events-none"></div>
+          </div>
+
+          <!-- Quick 1-Click Reactions Bar (Shows next to player name for everyone!) -->
+          <div class="flex items-center gap-1 bg-slate-900/90 border border-slate-700/80 px-2.5 py-1 rounded-xl">
+            <span class="text-[10px] font-bold text-slate-400 mr-1 hidden sm:inline"><i class="fas fa-smile text-amber-400 mr-1"></i>Reaccionar:</span>
+            <button onclick="sendQuickReaction('😂', '¡Jajaja!')" title="Risa" class="hover:scale-125 active:scale-95 transition text-base sm:text-lg px-1">😂</button>
+            <button onclick="sendQuickReaction('🤣', '¡Me muero de risa!')" title="Carcajada" class="hover:scale-125 active:scale-95 transition text-base sm:text-lg px-1">🤣</button>
+            <button onclick="sendQuickReaction('🔥', '¡En llamas!')" title="Fuego" class="hover:scale-125 active:scale-95 transition text-base sm:text-lg px-1">🔥</button>
+            <button onclick="sendQuickReaction('😎', '¡Qué jugada!')" title="Pro" class="hover:scale-125 active:scale-95 transition text-base sm:text-lg px-1">😎</button>
+            <button onclick="sendQuickReaction('😱', '¡No puede ser!')" title="Sorpresa" class="hover:scale-125 active:scale-95 transition text-base sm:text-lg px-1">😱</button>
+            <button onclick="sendQuickReaction('😭', '¡Qué mala suerte!')" title="Llanto" class="hover:scale-125 active:scale-95 transition text-base sm:text-lg px-1">😭</button>
+            <button onclick="sendQuickReaction('🤔', 'Pensando...')" title="Pensando" class="hover:scale-125 active:scale-95 transition text-base sm:text-lg px-1">🤔</button>
+            <button onclick="sendQuickReaction('👏', '¡Bien jugado!')" title="Aplauso" class="hover:scale-125 active:scale-95 transition text-base sm:text-lg px-1">👏</button>
+          </div>
+        </div>
+
+        <!-- Action Buttons Bar -->
+        <div class="flex items-center justify-center gap-1.5 sm:gap-2 flex-wrap">
+          <button id="btnOrganizeSuit" onclick="sortHandBySuit()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1.5 rounded-xl text-xs font-bold border border-slate-700 transition flex items-center gap-1 shadow">
+            <span>Palo</span>
+            <span class="text-red-400">♥♦</span><span class="text-slate-300">♣♠</span>
+          </button>
+          <button id="btnOrganizeRank" onclick="sortHandByRank()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1.5 rounded-xl text-xs font-bold border border-slate-700 transition flex items-center gap-1 shadow">
+            <span>Valor</span>
+            <span class="text-amber-400 font-mono">A-K</span>
+          </button>
+
+          <!-- BAJAR GRUPO SELECCIONADO O AUTO-DETECTADO -->
+          <button id="btnLowerMeld" onclick="userLowerMeldToTable()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-3.5 py-1.5 rounded-xl text-xs shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 border border-emerald-400/40">
+            <i class="fas fa-arrow-circle-down"></i>
+            <span id="btnLowerMeldText">Bajar Grupo a la Mesa</span>
+          </button>
+
+          <!-- DESCARTAR CARTA -->
+          <button id="btnDiscardCard" onclick="userDiscardSelectedCard()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5">
+            <i class="fas fa-hand-holding"></i>
+            <span>Descartar (1 Carta)</span>
+          </button>
+
+          <!-- EL GOLPE BUTTON -->
+          <button id="btnGolpe" onclick="userDeclareGolpe()" class="bg-slate-800 text-slate-500 font-black px-4 py-1.5 rounded-xl text-xs sm:text-sm transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 border border-slate-700">
+            <span>🔥</span>
+            <span>¡GOLPE!</span>
+          </button>
+        </div>
+
+        <!-- Visual Combinations Helper Badge -->
+        <div id="meldStatusBadge" class="bg-slate-900/90 border border-slate-700 px-3 py-1 rounded-full text-[11px] font-bold text-slate-300 flex items-center gap-2">
+          <i class="fas fa-magic text-amber-400"></i>
+          <span id="meldStatusText">Arrastra tus cartas o usa ◀ ▶ para ordenarlas a tu gusto</span>
+        </div>
+
+        <!-- PLAYER HAND CARDS DISPLAY WITH DIDACTIC HANDS ON SIDES -->
+        <div class="w-full flex items-center justify-center relative">
+          <!-- Left Didactic Hand Holding Cards -->
+          <div class="hidden md:flex flex-col items-center mr-1 text-amber-300/80 select-none pointer-events-none player-hands-bob" title="Tu mano izquierda sosteniendo tus cartas">
+            <span class="text-3xl -rotate-12 filter drop-shadow-lg">🫲</span>
+          </div>
+
+          <div id="playerHandContainer" class="flex-1 flex justify-center items-center gap-1 sm:gap-2 px-2 py-2.5 min-h-[125px] sm:min-h-[140px] overflow-x-auto">
+            <!-- Cards rendered here -->
+          </div>
+
+          <!-- Right Didactic Hand Holding Cards -->
+          <div class="hidden md:flex flex-col items-center ml-1 text-amber-300/80 select-none pointer-events-none player-hands-bob" title="Tu mano derecha sosteniendo tus cartas">
+            <span class="text-3xl rotate-12 filter drop-shadow-lg">🫱</span>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- MODAL: REGLAS DEL JUEGO                    -->
+  <!-- ========================================== -->
+  <div id="rulesModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="max-w-lg w-full bg-slate-900 border border-slate-700 rounded-3xl p-6 shadow-2xl relative">
+      <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+        <h3 class="text-xl font-black font-game text-amber-400 flex items-center gap-2">
+          <i class="fas fa-book"></i> Reglas Oficiales de GOLPES
+        </h3>
+        <button onclick="toggleRulesModal()" class="text-slate-400 hover:text-white text-lg">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="space-y-3 text-xs sm:text-sm text-slate-300 max-h-[70vh] overflow-y-auto pr-1">
+        <div class="bg-slate-800/70 p-3 rounded-xl border border-slate-700">
+          <p class="font-bold text-amber-300 mb-1">1. Reparto y Turnos (7 Cartas)</p>
+          <p>Cada jugador recibe <strong>7 cartas</strong>. En tu turno primero debes <strong>Robar 1 carta</strong> (del Mazo cerrado o del Pozo de descarte) y terminar tu turno <strong>Descartando 1 carta</strong> al pozo.</p>
+        </div>
+        <div class="bg-emerald-950/50 p-3 rounded-xl border border-emerald-700/50">
+          <p class="font-bold text-emerald-300 mb-1">2. Bajar Juegos a la Mesa (Visibles para todos)</p>
+          <p>Durante tu turno (después de robar), puedes <strong>bajar tus grupos armados a la mesa</strong> seleccionando 3 o 4 cartas válidas y pulsando <strong>"Bajar Grupo a la Mesa"</strong>:</p>
+          <ul class="list-disc list-inside mt-1 space-y-1 text-slate-200">
+            <li><strong>Tríos o Cuartetos:</strong> 3 o 4 cartas del mismo número y diferente palo (ej. 7♥ 7♠ 7♦).</li>
+            <li><strong>Escaleras:</strong> 3 o 4 cartas consecutivas del mismo palo (ej. 4♣ 5♣ 6♣).</li>
+          </ul>
+          <p class="mt-1 text-emerald-200 text-xs">¡Todas las cartas que bajes se mostrarán boca arriba en la mesa para que todos los jugadores las vean!</p>
+        </div>
+        <div class="bg-amber-950/50 p-3.5 rounded-xl border-2 border-amber-500/60">
+          <p class="font-black text-amber-300 mb-1.5 flex items-center gap-1.5">
+            <span>🔥</span> 3. Condición Estricta para Declarar ¡GOLPE!
+          </p>
+          <p class="mb-2 text-slate-200">Solo se permite golpear y ganar la ronda cuando tus 7 cartas (sumando grupos ya bajados a la mesa y en tu mano) cumplen <strong>una de estas 2 combinaciones exactas</strong>:</p>
+          <ul class="space-y-2 text-slate-100">
+            <li class="bg-slate-900/90 p-2 rounded-lg border border-amber-500/40">
+              🦆 <strong>Opción A (Golpe con Pato + 1 Vuelta):</strong> Tener <strong>2 grupos armados de 3 cartas</strong> cada uno + el <strong>número 2 como Pato</strong>. Cuando tienes todo listo al cerrar tu turno, <strong>debe pasar 1 vuelta completa</strong> hasta tu siguiente turno para poder declarar ¡GOLPE! con Pato.
+            </li>
+            <li class="bg-slate-900/90 p-2 rounded-lg border border-emerald-500/40">
+              👑 <strong>Opción B (Golpe Limpio 4 + 3):</strong> Tener <strong>2 grupos armados: uno de 4 cartas y otro de 3 cartas</strong> (7 cartas armadas sin carta suelta, permite golpear al instante).
+            </li>
+          </ul>
+          <p class="mt-2 text-[11px] text-amber-200/90 italic">* Nota: Puedes mover y ordenar tus cartas libremente arrastrándolas o con los botones ◀ ▶ en cada carta.</p>
+        </div>
+        <div class="bg-slate-800/70 p-3 rounded-xl border border-slate-700">
+          <p class="font-bold text-indigo-300 mb-1">4. Mazo Rebarajado y Desconexión sin Caídas</p>
+          <p>Cuando el mazo del centro se termina, el pozo se <strong>baraja aleatoriamente</strong> para que nadie sepa el orden. Si un jugador sale, un Bot toma su lugar al instante.</p>
+        </div>
+      </div>
+      <button onclick="toggleRulesModal()" class="mt-5 w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 rounded-xl text-sm transition">
+        ¡ENTENDIDO, A JUGAR!
+      </button>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- MODAL: GOLPE / RESULTADOS DE LA RONDA     -->
+  <!-- ========================================== -->
+  <div id="roundResultModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="max-w-lg w-full bg-slate-900 border border-amber-500/50 rounded-3xl p-6 shadow-2xl text-center relative overflow-hidden">
+      
+      <div id="winnerIcon" class="text-6xl mb-2 animate-bounce">🏆</div>
+      <h2 id="winnerTitle" class="text-3xl font-black font-game text-amber-400 mb-1">¡GOLPE DECLARADO!</h2>
+      <p id="winnerSubtitle" class="text-sm font-bold text-slate-300 mb-4">Jugador ha ganado la ronda</p>
+
+      <!-- Results Breakdown -->
+      <div id="roundBreakdown" class="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 text-left space-y-3 mb-5 max-h-64 overflow-y-auto">
+        <!-- Filled dynamically -->
+      </div>
+
+      <button onclick="restartGameRound()" class="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 font-black py-3.5 px-6 rounded-xl shadow-lg text-base transition transform active:scale-95 flex items-center justify-center gap-2">
+        <i class="fas fa-redo-alt"></i>
+        <span>JUGAR OTRA RONDA</span>
+      </button>
+
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- DRAWER: CHAT MULTIJUGADOR & EMOJIS         -->
+  <!-- ========================================== -->
+  <div id="chatDrawer" class="fixed top-0 right-0 h-full w-80 bg-slate-900/95 border-l border-slate-800 shadow-2xl z-40 transform translate-x-full transition-transform duration-300 flex flex-col">
+    <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950">
+      <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+        <i class="fas fa-comments text-amber-400"></i> Chat del Juego
+      </h3>
+      <button onclick="toggleChatDrawer()" class="text-slate-400 hover:text-white text-lg">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <div id="chatMessages" class="flex-1 p-4 overflow-y-auto space-y-3 text-xs"></div>
+
+    <div class="px-3 py-2 bg-slate-950 border-t border-slate-800 flex justify-around">
+      <button onclick="sendEmoji('👋')" class="text-xl hover:scale-125 transition">👋</button>
+      <button onclick="sendEmoji('🔥')" class="text-xl hover:scale-125 transition">🔥</button>
+      <button onclick="sendEmoji('😂')" class="text-xl hover:scale-125 transition">😂</button>
+      <button onclick="sendEmoji('😎')" class="text-xl hover:scale-125 transition">😎</button>
+      <button onclick="sendEmoji('🎉')" class="text-xl hover:scale-125 transition">🎉</button>
+    </div>
+
+    <form onsubmit="sendChatMessage(event)" class="p-3 bg-slate-950 border-t border-slate-800 flex gap-2">
+      <input type="text" id="chatInput" placeholder="Escribe un mensaje..." class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400">
+      <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-2 rounded-xl text-xs font-bold transition">
+        <i class="fas fa-paper-plane"></i>
+      </button>
+    </form>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- JAVASCRIPT GAME ENGINE LOGIC              -->
+  <!-- ========================================== -->
+  <script>
+    /* ----------------------------------------------------
+       1. CONSTANTS & GAME STATE
+       ---------------------------------------------------- */
+    const AVATARS = ['🦁', '🦊', '🐼', '🐸', '🦄', '🤖', '👑', '🧙‍♂️', '🚀', '🐱', '🐲', '🍕'];
+    const SUITS = [
+      { id: 'H', symbol: '♥', name: 'Corazones', isRed: true },
+      { id: 'D', symbol: '♦', name: 'Diamantes', isRed: true },
+      { id: 'C', symbol: '♣', name: 'Tréboles', isRed: false },
+      { id: 'S', symbol: '♠', name: 'Picas', isRed: false }
+    ];
+
+    const RANKS = [
+      { rank: 1, name: 'A', value: 1 },
+      { rank: 2, name: '2', value: 2 },
+      { rank: 3, name: '3', value: 3 },
+      { rank: 4, name: '4', value: 4 },
+      { rank: 5, name: '5', value: 5 },
+      { rank: 6, name: '6', value: 6 },
+      { rank: 7, name: '7', value: 7 },
+      { rank: 8, name: '8', value: 8 },
+      { rank: 9, name: '9', value: 9 },
+      { rank: 10, name: '10', value: 10 },
+      { rank: 11, name: 'J', value: 10 },
+      { rank: 12, name: 'Q', value: 10 },
+      { rank: 13, name: 'K', value: 10 }
+    ];
+
+    let soundEnabled = true;
+    let localPlayer = {
+      id: '',
+      peerId: '',
+      name: '',
+      avatar: '🦁',
+      isHost: false,
+      hand: [],
+      meldsOnTable: [],
+      patoReadyWaitComplete: false
+    };
+
+    let roomState = {
+      code: '',
+      isSoloBot: false,
+      players: [],
+      deck: [],
+      discardPile: [],
+      turnIndex: 0,
+      phase: 'DRAW',
+      status: 'LOBBY',
+      lastAction: 'Esperando inicio...',
+      roundWinner: null,
+      roundGolpeInfo: null
+    };
+
+    // Supports multiple card selection so players can pick 3+ cards to lower a group, or 1 card to discard
+    let selectedCardIds = [];
+    let draggedCardIndex = null;
+    let peer = null;
+    let hostConnection = null; // For Guest -> Host PeerJS connection
+    let peerConnections = {};  // For Host -> Guests PeerJS connections
+    let broadcastChannel = null;
+    let botTurnTimeout = null;
+    // Active floating reactions keyed by playerId: { emoji, label, timestamp }
+    let activeReactions = {};
+    let reactionTimeouts = {};
+
+    /* ----------------------------------------------------
+       2. TOAST & MODAL HELPERS
+       ---------------------------------------------------- */
+    function showToast(message, type = 'info', duration = 3500) {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const toast = document.createElement('div');
+
+      const bgMap = {
+        info: 'bg-slate-900 border-blue-500/50 text-blue-300',
+        success: 'bg-slate-900 border-emerald-500/50 text-emerald-300',
+        error: 'bg-slate-900 border-red-500/50 text-red-300',
+        warning: 'bg-slate-900 border-amber-500/50 text-amber-300'
+      };
+
+      const iconMap = {
+        info: 'fa-info-circle text-blue-400',
+        success: 'fa-check-circle text-emerald-400',
+        error: 'fa-exclamation-triangle text-red-400',
+        warning: 'fa-bell text-amber-400'
+      };
+
+      toast.className = `toast-anim flex items-center gap-2 px-4 py-3 rounded-2xl border shadow-2xl backdrop-blur text-xs font-bold ${bgMap[type] || bgMap.info}`;
+      toast.innerHTML = `
+        <i class="fas ${iconMap[type] || iconMap.info} text-base"></i>
+        <span class="flex-1">${message}</span>
+      `;
+
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-20px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
+
+    function toggleRulesModal() {
+      soundClick();
+      const modal = document.getElementById('rulesModal');
+      modal.classList.toggle('hidden');
+    }
+
+    function setNetworkStatus(msg, color = 'emerald') {
+      const dot = document.getElementById('netStatusDot');
+      const text = document.getElementById('netStatusText');
+      if (!dot || !text) return;
+
+      const colorClasses = {
+        emerald: 'bg-emerald-400',
+        amber: 'bg-amber-400 animate-pulse',
+        red: 'bg-red-500',
+        blue: 'bg-blue-400 animate-ping'
+      };
+
+      dot.className = `w-2.5 h-2.5 rounded-full ${colorClasses[color] || colorClasses.emerald}`;
+      text.innerText = msg;
+    }
+
+    /* ----------------------------------------------------
+       3. WEB AUDIO SYNTHESIZER
+       ---------------------------------------------------- */
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = AudioContextClass ? new AudioContextClass() : null;
+
+    function playTone(freq, type, duration, startVol = 0.1, endVol = 0) {
+      if (!soundEnabled || !audioCtx) return;
+      try {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(startVol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(Math.max(endVol, 0.0001), audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function soundDrawCard() {
+      playTone(420, 'sine', 0.1, 0.15, 0.01);
+      setTimeout(() => playTone(620, 'sine', 0.12, 0.15, 0.01), 45);
+    }
+
+    function soundDiscardCard() {
+      playTone(300, 'triangle', 0.1, 0.2, 0.01);
+    }
+
+    function soundMeldTable() {
+      playTone(440, 'triangle', 0.12, 0.25, 0.02);
+      setTimeout(() => playTone(554.37, 'triangle', 0.12, 0.25, 0.02), 80);
+      setTimeout(() => playTone(659.25, 'triangle', 0.2, 0.3, 0.01), 160);
+    }
+
+    function soundGolpe() {
+      playTone(523.25, 'square', 0.15, 0.3, 0.05);
+      setTimeout(() => playTone(659.25, 'square', 0.15, 0.3, 0.05), 120);
+      setTimeout(() => playTone(783.99, 'square', 0.3, 0.35, 0.01), 240);
+    }
+
+    function soundReaction(emoji) {
+      if (emoji === '😂' || emoji === '🤣') {
+        playTone(580, 'sine', 0.08, 0.15, 0.01);
+        setTimeout(() => playTone(680, 'sine', 0.08, 0.15, 0.01), 90);
+        setTimeout(() => playTone(760, 'sine', 0.12, 0.18, 0.01), 180);
+      } else {
+        playTone(520, 'triangle', 0.1, 0.15, 0.01);
+        setTimeout(() => playTone(660, 'sine', 0.14, 0.18, 0.01), 80);
+      }
+    }
+
+    function soundClick() {
+      playTone(800, 'sine', 0.05, 0.05, 0.001);
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      const icon = document.getElementById('soundIcon');
+      icon.className = soundEnabled ? 'fas fa-volume-up text-sm text-amber-400' : 'fas fa-volume-mute text-sm text-slate-500';
+    }
+
+    /* ----------------------------------------------------
+       4. INIT & UNLOAD PROTECTION
+       ---------------------------------------------------- */
+    window.onload = () => {
+      const randomId = Math.floor(1000 + Math.random() * 9000);
+      localPlayer.id = 'player_' + Math.random().toString(36).substring(2, 9);
+      localPlayer.name = 'Jugador' + randomId;
+      document.getElementById('playerNameInput').value = localPlayer.name;
+
+      // Render Avatar Grid
+      const avatarGrid = document.getElementById('avatarGrid');
+      avatarGrid.innerHTML = '';
+      AVATARS.forEach((av, i) => {
+        const btn = document.createElement('button');
+        btn.className = `p-2 text-xl rounded-xl border transition ${i === 0 ? 'bg-amber-500/20 border-amber-400 scale-110' : 'bg-slate-800 border-slate-700 hover:border-slate-500'}`;
+        btn.innerText = av;
+        btn.onclick = () => {
+          localPlayer.avatar = av;
+          Array.from(avatarGrid.children).forEach(c => c.className = 'p-2 text-xl rounded-xl border transition bg-slate-800 border-slate-700 hover:border-slate-500');
+          btn.className = 'p-2 text-xl rounded-xl border transition bg-amber-500/20 border-amber-400 scale-110';
+          soundClick();
+        };
+        avatarGrid.appendChild(btn);
+      });
+    };
+
+    window.addEventListener('beforeunload', () => {
+      notifyDepartureToNetwork();
+    });
+
+    function switchWelcomeTab(tab) {
+      soundClick();
+      document.getElementById('tabBotBtn').className = tab === 'bot' ? 'flex-1 py-2 text-xs font-bold rounded-lg transition bg-amber-500 text-slate-950 shadow' : 'flex-1 py-2 text-xs font-bold rounded-lg transition text-slate-400 hover:text-white';
+      document.getElementById('tabCreateBtn').className = tab === 'create' ? 'flex-1 py-2 text-xs font-bold rounded-lg transition bg-amber-500 text-slate-950 shadow' : 'flex-1 py-2 text-xs font-bold rounded-lg transition text-slate-400 hover:text-white';
+      document.getElementById('tabJoinBtn').className = tab === 'join' ? 'flex-1 py-2 text-xs font-bold rounded-lg transition bg-amber-500 text-slate-950 shadow' : 'flex-1 py-2 text-xs font-bold rounded-lg transition text-slate-400 hover:text-white';
+
+      document.getElementById('botTabContent').classList.toggle('hidden', tab !== 'bot');
+      document.getElementById('createTabContent').classList.toggle('hidden', tab !== 'create');
+      document.getElementById('joinTabContent').classList.toggle('hidden', tab !== 'join');
+    }
+
+    /* ----------------------------------------------------
+       5. FAULT-TOLERANT P2P & BROADCASTCHANNEL NETWORKING
+       ---------------------------------------------------- */
+    function sendActionToHostOrExecute(actionPayload) {
+      if (localPlayer.isHost || roomState.isSoloBot) {
+        processPlayerActionOnHost(actionPayload);
+      } else {
+        if (broadcastChannel) {
+          try { broadcastChannel.postMessage(actionPayload); } catch (e) {}
+        }
+        if (hostConnection && hostConnection.open) {
+          try { hostConnection.send(actionPayload); } catch (e) {}
+        }
+      }
+    }
+
+    function broadcastState() {
+      syncLocalPlayerFromState();
+
+      if (roomState.isSoloBot) {
+        updateUI();
+        return;
+      }
+
+      if (broadcastChannel) {
+        try {
+          broadcastChannel.postMessage({
+            type: 'BC_STATE_UPDATE',
+            state: roomState
+          });
+        } catch (e) {}
+      }
+
+      Object.keys(peerConnections).forEach(pid => {
+        const conn = peerConnections[pid];
+        if (conn && conn.open) {
+          try {
+            conn.send({ type: 'STATE_UPDATE', state: roomState });
+          } catch (e) {}
+        }
+      });
+
+      updateUI();
+    }
+
+    function syncLocalPlayerFromState() {
+      if (!roomState || !Array.isArray(roomState.players)) return;
+      const me = roomState.players.find(p => p.id === localPlayer.id);
+      if (me) {
+        const incomingHand = Array.isArray(me.hand) ? me.hand : [];
+        if (localPlayer.hand && localPlayer.hand.length > 0) {
+          const incomingMap = new Map(incomingHand.map(c => [c.id, c]));
+          const preserved = [];
+          localPlayer.hand.forEach(c => {
+            if (incomingMap.has(c.id)) {
+              preserved.push(incomingMap.get(c.id));
+              incomingMap.delete(c.id);
+            }
+          });
+          incomingMap.forEach(c => preserved.push(c));
+          localPlayer.hand = preserved;
+          me.hand = preserved;
+        } else {
+          localPlayer.hand = incomingHand;
+        }
+        localPlayer.meldsOnTable = Array.isArray(me.meldsOnTable) ? me.meldsOnTable : [];
+        localPlayer.patoReadyWaitComplete = !!me.patoReadyWaitComplete;
+        localPlayer.isHost = !!me.isHost;
+      }
+    }
+
+    function handlePlayerDeparture(departedPlayerId) {
+      if (!roomState || !Array.isArray(roomState.players)) return;
+      const idx = roomState.players.findIndex(p => p.id === departedPlayerId);
+      if (idx === -1) return;
+
+      const departingPlayer = roomState.players[idx];
+      if (peerConnections[departedPlayerId]) {
+        delete peerConnections[departedPlayerId];
+      }
+
+      if (roomState.status === 'LOBBY') {
+        const wasHost = departingPlayer.isHost;
+        roomState.players.splice(idx, 1);
+        if (roomState.players.length === 0) return;
+        if (wasHost) {
+          const nextHuman = roomState.players.find(p => !p.isBot) || roomState.players[0];
+          nextHuman.isHost = true;
+          if (nextHuman.id === localPlayer.id) {
+            localPlayer.isHost = true;
+            showToast('El anfitrión salió. Ahora eres el Anfitrión.', 'info');
+          }
+        }
+        updateLobbyUI();
+        if (localPlayer.isHost) broadcastState();
+        return;
+      }
+
+      if (!departingPlayer.isBot) {
+        const oldName = departingPlayer.name;
+        departingPlayer.isBot = true;
+        departingPlayer.name = `Bot (${oldName.slice(0, 8)})`;
+        departingPlayer.avatar = '🤖';
+        const wasHost = departingPlayer.isHost;
+        departingPlayer.isHost = false;
+
+        roomState.lastAction = `${oldName} abandonó. ¡Un Bot tomó su lugar!`;
+        showToast(`${oldName} salió. Un Bot continúa jugando por él.`, 'warning');
+
+        if (wasHost) {
+          const nextHuman = roomState.players.find(p => !p.isBot);
+          if (nextHuman) {
+            nextHuman.isHost = true;
+            if (nextHuman.id === localPlayer.id) {
+              localPlayer.isHost = true;
+              showToast('Has asumido el rol de Anfitrión.', 'success');
+            }
+          }
+        }
+
+        if (localPlayer.isHost) {
+          broadcastState();
+          if (roomState.turnIndex === idx && roomState.status === 'PLAYING') {
+            checkBotTurn();
+          }
+        } else {
+          updateUI();
+        }
+      }
+    }
+
+    function notifyDepartureToNetwork() {
+      if (!roomState || !roomState.code) return;
+      const payload = {
+        type: 'PLAYER_LEFT',
+        playerId: localPlayer.id,
+        wasHost: localPlayer.isHost,
+        backupState: roomState
+      };
+      if (broadcastChannel) {
+        try { broadcastChannel.postMessage(payload); } catch (e) {}
+      }
+      if (hostConnection && hostConnection.open) {
+        try { hostConnection.send(payload); } catch (e) {}
+      }
+      Object.values(peerConnections).forEach(conn => {
+        if (conn && conn.open) {
+          try { conn.send(payload); } catch (e) {}
+        }
+      });
+    }
+
+    function processPlayerActionOnHost(data) {
+      if (!localPlayer.isHost && !roomState.isSoloBot) return;
+
+      if (data.type === 'ACTION_DRAW') {
+        handleHostDraw(data.playerId, data.source);
+      } else if (data.type === 'ACTION_DISCARD') {
+        handleHostDiscard(data.playerId, data.cardId);
+      } else if (data.type === 'ACTION_MELD') {
+        handleHostLowerMeld(data.playerId, data.cardIds);
+      } else if (data.type === 'ACTION_GOLPE') {
+        handleHostDeclareGolpe(data.playerId);
+      } else if (data.type === 'ACTION_RESTART_ROUND') {
+        restartGameRound();
+      } else if (data.type === 'PLAYER_LEFT') {
+        handlePlayerDeparture(data.playerId);
+      } else if (data.type === 'PLAYER_REACTION') {
+        displayPlayerReaction(data.playerId, data.emoji, data.label);
+        if (broadcastChannel) {
+          try { broadcastChannel.postMessage({ type: 'REACTION_BROADCAST', playerId: data.playerId, emoji: data.emoji, label: data.label }); } catch (e) {}
+        }
+        Object.values(peerConnections).forEach(conn => {
+          if (conn && conn.open) {
+            try { conn.send({ type: 'REACTION_BROADCAST', playerId: data.playerId, emoji: data.emoji, label: data.label }); } catch (e) {}
+          }
+        });
+      } else if (data.type === 'CHAT_MSG') {
+        appendChatMessage(data.sender, data.text);
+        if (broadcastChannel) {
+          try { broadcastChannel.postMessage({ type: 'CHAT_BROADCAST', sender: data.sender, text: data.text }); } catch (e) {}
+        }
+        Object.values(peerConnections).forEach(conn => {
+          if (conn && conn.open) {
+            try { conn.send({ type: 'CHAT_BROADCAST', sender: data.sender, text: data.text }); } catch (e) {}
+          }
+        });
+      }
+    }
+
+    function setupBroadcastChannelForRoom(code) {
+      if (broadcastChannel) {
+        try { broadcastChannel.close(); } catch (e) {}
+      }
+      try {
+        broadcastChannel = new BroadcastChannel('GOLPEADO_BC_' + code);
+        broadcastChannel.onmessage = (event) => {
+          const data = event.data;
+          if (!data || !data.type) return;
+
+          if (data.type === 'BC_JOIN_REQUEST' && localPlayer.isHost) {
+            const existing = roomState.players.find(p => p.id === data.player.id);
+            if (!existing && roomState.players.length < 4 && roomState.status === 'LOBBY') {
+              const newPlayer = {
+                ...data.player,
+                isBot: false,
+                handCount: 0,
+                hand: [],
+                meldsOnTable: [],
+                isHost: false
+              };
+              roomState.players.push(newPlayer);
+              updateLobbyUI();
+              broadcastState();
+              showToast(`¡${newPlayer.name} se unió a la sala!`, 'success');
+
+              broadcastChannel.postMessage({
+                type: 'BC_JOIN_ACCEPTED',
+                targetPlayerId: data.player.id,
+                state: roomState
+              });
+            }
+          }
+
+          if (data.type === 'BC_JOIN_ACCEPTED' && data.targetPlayerId === localPlayer.id) {
+            roomState = data.state;
+            syncLocalPlayerFromState();
+            document.getElementById('welcomeScreen').classList.add('hidden');
+            document.getElementById('lobbyScreen').classList.remove('hidden');
+            document.getElementById('lobbyRoomCodeDisplay').innerText = roomState.code;
+            updateLobbyUI();
+            setNetworkStatus('🟢 Conectado', 'emerald');
+            showToast('¡Unido con éxito a la sala!', 'success');
+          }
+
+          if (data.type === 'BC_STATE_UPDATE' && !localPlayer.isHost) {
+            applyIncomingRoomState(data.state);
+          }
+
+          if (['ACTION_DRAW', 'ACTION_DISCARD', 'ACTION_MELD', 'ACTION_GOLPE', 'ACTION_RESTART_ROUND', 'CHAT_MSG', 'PLAYER_REACTION'].includes(data.type) && localPlayer.isHost) {
+            processPlayerActionOnHost(data);
+          }
+
+          if (data.type === 'PLAYER_LEFT') {
+            if (data.wasHost && data.backupState && !localPlayer.isHost) {
+              roomState = data.backupState;
+            }
+            handlePlayerDeparture(data.playerId);
+          }
+
+          if (data.type === 'REACTION_BROADCAST' && !localPlayer.isHost) {
+            displayPlayerReaction(data.playerId, data.emoji, data.label);
+          }
+
+          if (data.type === 'CHAT_BROADCAST' && data.sender !== localPlayer.name) {
+            appendChatMessage(data.sender, data.text, true);
+          }
+        };
+      } catch (e) {}
+    }
+
+    function applyIncomingRoomState(newState) {
+      if (!newState) return;
+      const prevStatus = roomState.status;
+      roomState = newState;
+      syncLocalPlayerFromState();
+      updateLobbyUI();
+
+      if (roomState.status === 'PLAYING') {
+        document.getElementById('welcomeScreen').classList.add('hidden');
+        document.getElementById('lobbyScreen').classList.add('hidden');
+        document.getElementById('gameScreen').classList.remove('hidden');
+        document.getElementById('roundResultModal').classList.add('hidden');
+        document.getElementById('gameRoomCode').innerText = roomState.code;
+      } else if (roomState.status === 'ROUND_END' && prevStatus !== 'ROUND_END') {
+        document.getElementById('lobbyScreen').classList.add('hidden');
+        document.getElementById('gameScreen').classList.remove('hidden');
+        if (roomState.roundWinner && roomState.roundGolpeInfo) {
+          displayRoundEndModal(roomState.roundWinner, roomState.roundGolpeInfo);
+        }
+      }
+      updateUI();
+    }
+
+    function createRoom() {
+      const name = document.getElementById('playerNameInput').value.trim() || localPlayer.name;
+      localPlayer.name = name;
+      localPlayer.isHost = true;
+
+      const code = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const hostPeerId = 'GOLPEADO-' + code;
+
+      roomState = {
+        code,
+        isSoloBot: false,
+        players: [{
+          id: localPlayer.id,
+          name: localPlayer.name,
+          avatar: localPlayer.avatar,
+          isBot: false,
+          handCount: 0,
+          hand: [],
+          meldsOnTable: [],
+          isHost: true
+        }],
+        deck: [],
+        discardPile: [],
+        turnIndex: 0,
+        phase: 'DRAW',
+        status: 'LOBBY',
+        lastAction: 'Esperando jugadores...',
+        roundWinner: null,
+        roundGolpeInfo: null
+      };
+
+      setupBroadcastChannelForRoom(code);
+
+      if (peer) peer.destroy();
+      setNetworkStatus('🟡 Abriendo sala...', 'amber');
+
+      try {
+        peer = new Peer(hostPeerId, {
+          config: {
+            iceServers: [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+          }
+        });
+
+        peer.on('open', () => {
+          setNetworkStatus('🟢 Sala P2P Activa', 'emerald');
+        });
+
+        peer.on('connection', (conn) => {
+          let connectedPlayerId = null;
+
+          conn.on('data', (data) => {
+            if (!data || !data.type) return;
+
+            if (data.type === 'JOIN_REQUEST') {
+              connectedPlayerId = data.player.id;
+              peerConnections[connectedPlayerId] = conn;
+
+              const existing = roomState.players.find(p => p.id === data.player.id);
+              if (!existing && roomState.players.length < 4 && roomState.status === 'LOBBY') {
+                const newPlayer = {
+                  ...data.player,
+                  isBot: false,
+                  handCount: 0,
+                  hand: [],
+                  meldsOnTable: [],
+                  isHost: false
+                };
+                roomState.players.push(newPlayer);
+                updateLobbyUI();
+                broadcastState();
+                conn.send({ type: 'JOIN_ACCEPTED', state: roomState });
+                showToast(`¡${newPlayer.name} se unió a la sala!`, 'success');
+              } else if (existing) {
+                conn.send({ type: 'JOIN_ACCEPTED', state: roomState });
+              }
+            } else {
+              processPlayerActionOnHost(data);
+            }
+          });
+
+          conn.on('close', () => {
+            if (connectedPlayerId) handlePlayerDeparture(connectedPlayerId);
+          });
+          conn.on('error', () => {
+            if (connectedPlayerId) handlePlayerDeparture(connectedPlayerId);
+          });
+        });
+
+        peer.on('error', () => {
+          setNetworkStatus('🟢 Red Local Activa', 'emerald');
+        });
+      } catch (e) {
+        setNetworkStatus('🟢 Red Local Activa', 'emerald');
+      }
+
+      document.getElementById('welcomeScreen').classList.add('hidden');
+      document.getElementById('lobbyScreen').classList.remove('hidden');
+      document.getElementById('lobbyRoomCodeDisplay').innerText = code;
+
+      updateLobbyUI();
+      showToast(`Sala ${code} creada. ¡Comparte el código!`, 'success');
+    }
+
+    function joinRoom() {
+      const name = document.getElementById('playerNameInput').value.trim() || localPlayer.name;
+      const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+
+      if (!code || code.length !== 4) {
+        showToast('Ingresa un código de sala válido de 4 letras.', 'warning');
+        return;
+      }
+
+      localPlayer.name = name;
+      localPlayer.isHost = false;
+
+      setupBroadcastChannelForRoom(code);
+      setNetworkStatus('🟡 Buscando sala...', 'amber');
+
+      if (broadcastChannel) {
+        try {
+          broadcastChannel.postMessage({
+            type: 'BC_JOIN_REQUEST',
+            player: localPlayer
+          });
+        } catch (e) {}
+      }
+
+      const hostPeerId = 'GOLPEADO-' + code;
+      if (peer) peer.destroy();
+
+      try {
+        peer = new Peer({
+          config: {
+            iceServers: [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+          }
+        });
+
+        peer.on('open', () => {
+          const conn = peer.connect(hostPeerId, { reliable: true });
+          hostConnection = conn;
+
+          conn.on('open', () => {
+            conn.send({ type: 'JOIN_REQUEST', player: localPlayer });
+            setNetworkStatus('🟢 Conectado', 'emerald');
+          });
+
+          conn.on('data', (data) => {
+            if (!data || !data.type) return;
+            if (data.type === 'JOIN_ACCEPTED') {
+              roomState = data.state;
+              syncLocalPlayerFromState();
+              document.getElementById('welcomeScreen').classList.add('hidden');
+              document.getElementById('lobbyScreen').classList.remove('hidden');
+              document.getElementById('lobbyRoomCodeDisplay').innerText = code;
+              updateLobbyUI();
+              showToast('¡Te has unido a la sala!', 'success');
+            } else if (data.type === 'STATE_UPDATE') {
+              applyIncomingRoomState(data.state);
+            } else if (data.type === 'PLAYER_LEFT') {
+              if (data.wasHost && data.backupState) {
+                roomState = data.backupState;
+              }
+              handlePlayerDeparture(data.playerId);
+            } else if (data.type === 'REACTION_BROADCAST') {
+              displayPlayerReaction(data.playerId, data.emoji, data.label);
+            } else if (data.type === 'CHAT_BROADCAST' && data.sender !== localPlayer.name) {
+              appendChatMessage(data.sender, data.text, true);
+            }
+          });
+
+          conn.on('close', () => {
+            const hostPlayer = roomState.players.find(p => p.isHost);
+            if (hostPlayer && hostPlayer.id !== localPlayer.id) {
+              handlePlayerDeparture(hostPlayer.id);
+            }
+          });
+        });
+      } catch (e) {}
+    }
+
+    function startSoloBotGame(playerCount) {
+      const name = document.getElementById('playerNameInput').value.trim() || localPlayer.name;
+      localPlayer.name = name;
+      localPlayer.isHost = true;
+
+      const code = 'SOLO';
+      const players = [{
+        id: localPlayer.id,
+        name: localPlayer.name,
+        avatar: localPlayer.avatar,
+        isBot: false,
+        handCount: 0,
+        hand: [],
+        meldsOnTable: [],
+        isHost: true
+      }];
+
+      const botAvatars = ['🤖', '🧙‍♂️', '👑'];
+      for (let i = 1; i < playerCount; i++) {
+        players.push({
+          id: 'bot_' + i,
+          name: 'Bot ' + i,
+          avatar: botAvatars[i - 1],
+          isBot: true,
+          handCount: 0,
+          hand: [],
+          meldsOnTable: [],
+          isHost: false
+        });
+      }
+
+      roomState = {
+        code,
+        isSoloBot: true,
+        players,
+        deck: [],
+        discardPile: [],
+        turnIndex: 0,
+        phase: 'DRAW',
+        status: 'PLAYING',
+        lastAction: '¡Partida iniciada!',
+        roundWinner: null,
+        roundGolpeInfo: null
+      };
+
+      document.getElementById('welcomeScreen').classList.add('hidden');
+      document.getElementById('lobbyScreen').classList.add('hidden');
+      document.getElementById('gameScreen').classList.remove('hidden');
+
+      initGameRound();
+    }
+
+    function addBotToLobby() {
+      if (!localPlayer.isHost) {
+        showToast('Solo el anfitrión puede agregar Bots.', 'warning');
+        return;
+      }
+      if (roomState.players.length >= 4) {
+        showToast('Máximo 4 jugadores en la sala.', 'warning');
+        return;
+      }
+      const botNum = roomState.players.filter(p => p.isBot).length + 1;
+      roomState.players.push({
+        id: 'bot_' + Date.now() + '_' + botNum,
+        name: 'Bot ' + botNum,
+        avatar: '🤖',
+        isBot: true,
+        handCount: 0,
+        hand: [],
+        meldsOnTable: [],
+        isHost: false
+      });
+      updateLobbyUI();
+      broadcastState();
+      showToast('Bot agregado.', 'info');
+    }
+
+    function updateLobbyUI() {
+      const badge = document.getElementById('playerCountBadge');
+      if (badge) badge.innerText = `${roomState.players.length}/4`;
+
+      const listEl = document.getElementById('lobbyPlayerList');
+      if (!listEl) return;
+      listEl.innerHTML = '';
+
+      roomState.players.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'flex items-center justify-between bg-slate-800 border border-slate-700 p-3 rounded-xl';
+        item.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="text-2xl">${p.avatar}</span>
+            <span class="font-bold text-sm text-slate-200">${p.name} ${p.id === localPlayer.id ? '(Tú)' : ''}</span>
+          </div>
+          <div class="flex items-center gap-1">
+            ${p.isHost ? '<span class="text-xs bg-amber-500/20 text-amber-400 border border-amber-400/40 px-2 py-0.5 rounded-full font-bold">Anfitrión</span>' : ''}
+            ${p.isBot ? '<span class="text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-400/40 px-2 py-0.5 rounded-full font-bold">Bot IA</span>' : ''}
+          </div>
+        `;
+        listEl.appendChild(item);
+      });
+
+      const startBtn = document.getElementById('startGameBtn');
+      const addBotBtn = document.getElementById('addBotBtn');
+      if (localPlayer.isHost) {
+        startBtn.classList.remove('hidden');
+        startBtn.disabled = roomState.players.length < 2;
+        if (addBotBtn) addBotBtn.classList.remove('hidden');
+        document.getElementById('lobbyWaitingMsg').classList.add('hidden');
+      } else {
+        startBtn.classList.add('hidden');
+        if (addBotBtn) addBotBtn.classList.add('hidden');
+        document.getElementById('lobbyWaitingMsg').classList.remove('hidden');
+      }
+    }
+
+    function startGameHost() {
+      if (!localPlayer.isHost) return;
+      roomState.status = 'PLAYING';
+      document.getElementById('lobbyScreen').classList.add('hidden');
+      document.getElementById('gameScreen').classList.remove('hidden');
+      initGameRound();
+      broadcastState();
+    }
+
+    /* ----------------------------------------------------
+       6. DECK & COMBINATIONS / LOWERED MELDS ENGINE
+       ---------------------------------------------------- */
+    function createEnglishDeck() {
+      const deck = [];
+      let idCounter = 1;
+      SUITS.forEach(suit => {
+        RANKS.forEach(rk => {
+          deck.push({
+            id: 'c_' + (idCounter++),
+            suit: suit.id,
+            suitSymbol: suit.symbol,
+            suitName: suit.name,
+            isRed: suit.isRed,
+            rank: rk.rank,
+            rankName: rk.name,
+            value: rk.value
+          });
+        });
+      });
+
+      for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+      return deck;
+    }
+
+    function isValidSet(cards) {
+      if (!Array.isArray(cards) || cards.length < 3 || cards.length > 4) return false;
+      const firstRank = cards[0].rank;
+      const suits = new Set();
+      for (let c of cards) {
+        if (c.rank !== firstRank) return false;
+        if (suits.has(c.suit)) return false;
+        suits.add(c.suit);
+      }
+      return true;
+    }
+
+    function isValidSequence(cards) {
+      if (!Array.isArray(cards) || cards.length < 3) return false;
+      const firstSuit = cards[0].suit;
+      const sorted = [...cards].sort((a, b) => a.rank - b.rank);
+      for (let c of sorted) {
+        if (c.suit !== firstSuit) return false;
+      }
+      for (let i = 0; i < sorted.length - 1; i++) {
+        if (sorted[i + 1].rank !== sorted[i].rank + 1) return false;
+      }
+      return true;
+    }
+
+    function isValidMeldGroup(cards) {
+      return isValidSet(cards) || isValidSequence(cards);
+    }
+
+    function sortMeldCards(cards) {
+      return [...cards].sort((a, b) => a.rank - b.rank);
+    }
+
+    function getAllValidMeldsOfSize3Or4(hand) {
+      const validMelds = [];
+      function getSubsets(arr, size) {
+        const result = [];
+        function p(start, current) {
+          if (current.length === size) {
+            result.push([...current]);
+            return;
+          }
+          for (let i = start; i < arr.length; i++) {
+            current.push(arr[i]);
+            p(i + 1, current);
+            current.pop();
+          }
+        }
+        p(0, []);
+        return result;
+      }
+
+      [3, 4].forEach(sz => {
+        if (hand.length >= sz) {
+          getSubsets(hand, sz).forEach(sub => {
+            if (isValidSet(sub) || isValidSequence(sub)) {
+              validMelds.push(sortMeldCards(sub));
+            }
+          });
+        }
+      });
+      return validMelds;
+    }
+
+    function findBestMelds(hand) {
+      if (!Array.isArray(hand) || hand.length === 0) {
+        return { melds: [], unmelded: [] };
+      }
+
+      const validMelds = getAllValidMeldsOfSize3Or4(hand);
+      let bestCombination = { melds: [], unmelded: [...hand] };
+      let bestPriorityScore = -1;
+
+      function search(index, usedIds, currentMelds) {
+        const countUsed = usedIds.size;
+        const unmelded = hand.filter(c => !usedIds.has(c.id));
+        const hasDuckTwo = unmelded.some(c => c.rank === 2);
+        const unmeldedPenalty = unmelded.reduce((acc, c) => acc + (c.rank === 2 ? 0 : c.rank), 0);
+
+        const priorityScore = (countUsed * 1000) + (currentMelds.length * 150) + (hasDuckTwo ? 50 : 0) - unmeldedPenalty;
+
+        if (priorityScore > bestPriorityScore) {
+          bestPriorityScore = priorityScore;
+          bestCombination = { melds: [...currentMelds], unmelded };
+        }
+
+        for (let i = index; i < validMelds.length; i++) {
+          const meld = validMelds[i];
+          const canUse = meld.every(c => !usedIds.has(c.id));
+          if (canUse) {
+            meld.forEach(c => usedIds.add(c.id));
+            currentMelds.push(meld);
+            search(i + 1, usedIds, currentMelds);
+            currentMelds.pop();
+            meld.forEach(c => usedIds.delete(c.id));
+          }
+        }
+      }
+
+      search(0, new Set(), []);
+      return bestCombination;
+    }
+
+    function evaluateGolpeEligibility(hand, meldsOnTable = [], phase = roomState.phase, patoWaitSatisfied = true) {
+      const loweredMelds = Array.isArray(meldsOnTable) ? meldsOnTable : [];
+      const loweredCardsCount = loweredMelds.reduce((sum, m) => sum + m.length, 0);
+      const totalCardsOwned = hand.length + loweredCardsCount;
+
+      if (totalCardsOwned < 7) {
+        return { canGolpe: false, patoPendingWait: false, type: '', melds: loweredMelds, unmelded: hand };
+      }
+
+      function checkStrictSevenCards(activeHand, discardedCard = null) {
+        if (loweredCardsCount + activeHand.length !== 7) {
+          return { canGolpe: false, patoPendingWait: false, score: 999 };
+        }
+
+        const candidateMeldsInHand = getAllValidMeldsOfSize3Or4(activeHand);
+        let foundClean43 = null;
+        let foundDuck2 = null;
+
+        function backtrack(startIdx, usedIds, handMelds) {
+          const allMelds = [...loweredMelds, ...handMelds];
+
+          if (allMelds.length === 2) {
+            const lengths = allMelds.map(m => m.length).sort((a, b) => a - b);
+            const looseCards = activeHand.filter(c => !usedIds.has(c.id));
+
+            if (lengths[0] === 3 && lengths[1] === 4 && looseCards.length === 0) {
+              foundClean43 = {
+                canGolpe: true,
+                patoPendingWait: false,
+                isPatoGolpe: false,
+                score: 0,
+                type: '👑 ¡Golpe Limpio! (Grupo de 4 + Grupo de 3)',
+                melds: allMelds,
+                unmelded: [],
+                discardedOnGolpe: discardedCard
+              };
+              return;
+            }
+
+            if (lengths[0] === 3 && lengths[1] === 3 && looseCards.length === 1 && looseCards[0].rank === 2) {
+              const patoCard = looseCards[0];
+              foundDuck2 = {
+                canGolpe: !!patoWaitSatisfied,
+                patoPendingWait: !patoWaitSatisfied,
+                isPatoGolpe: true,
+                score: 2,
+                type: `🦆 ¡Golpe con Pato! (2 Grupos de 3 + Pato ${patoCard.rankName}${patoCard.suitSymbol})`,
+                melds: allMelds,
+                unmelded: [patoCard],
+                discardedOnGolpe: discardedCard
+              };
+            }
+            return;
+          }
+
+          if (allMelds.length > 2) return;
+
+          for (let i = startIdx; i < candidateMeldsInHand.length; i++) {
+            const m = candidateMeldsInHand[i];
+            if (m.every(c => !usedIds.has(c.id))) {
+              m.forEach(c => usedIds.add(c.id));
+              handMelds.push(m);
+              backtrack(i + 1, usedIds, handMelds);
+              handMelds.pop();
+              m.forEach(c => usedIds.delete(c.id));
+              if (foundClean43) return;
+            }
+          }
+        }
+
+        backtrack(0, new Set(), []);
+        if (foundClean43) return foundClean43;
+        if (foundDuck2) return foundDuck2;
+        return { canGolpe: false, patoPendingWait: false, score: 999 };
+      }
+
+      let bestResult = checkStrictSevenCards(hand, null);
+
+      if (!bestResult.canGolpe && phase === 'DISCARD' && totalCardsOwned === 8 && hand.length >= 1) {
+        for (let i = 0; i < hand.length; i++) {
+          const subHand = hand.filter((_, idx) => idx !== i);
+          const candidate = checkStrictSevenCards(subHand, hand[i]);
+          if (candidate.canGolpe && candidate.score < bestResult.score) {
+            bestResult = candidate;
+            if (bestResult.score === 0) break;
+          } else if (!bestResult.canGolpe && candidate.patoPendingWait) {
+            bestResult = candidate;
+          }
+        }
+      }
+
+      if (bestResult.canGolpe || bestResult.patoPendingWait) return bestResult;
+      return { canGolpe: false, patoPendingWait: false, type: '', melds: [], unmelded: [] };
+    }
+
+    function hasThreeThreePlusPatoReady(hand, meldsOnTable = []) {
+      const check = evaluateGolpeEligibility(hand, meldsOnTable, 'DRAW', true);
+      return !!(check.canGolpe && check.isPatoGolpe);
+    }
+
+    /* ----------------------------------------------------
+       7. GAME ENGINE TURNS, HOST HANDLERS & BOT AI
+       ---------------------------------------------------- */
+    function initGameRound() {
+      if (botTurnTimeout) clearTimeout(botTurnTimeout);
+      soundDrawCard();
+      const newDeck = createEnglishDeck();
+
+      roomState.players.forEach(p => {
+        p.hand = newDeck.splice(0, 7);
+        p.handCount = 7;
+        p.meldsOnTable = [];
+        p.patoReadyWaitComplete = false;
+      });
+
+      selectedCardIds = [];
+      roomState.discardPile = [newDeck.pop()];
+      roomState.deck = newDeck;
+      roomState.turnIndex = 0;
+      roomState.phase = 'DRAW';
+      roomState.status = 'PLAYING';
+      roomState.roundWinner = null;
+      roomState.roundGolpeInfo = null;
+      roomState.lastAction = `Turno de ${roomState.players[0].name}`;
+
+      syncLocalPlayerFromState();
+      document.getElementById('gameRoomCode').innerText = roomState.code;
+
+      updateUI();
+      checkBotTurn();
+    }
+
+    function checkBotTurn() {
+      if (!localPlayer.isHost && !roomState.isSoloBot) return;
+      if (roomState.status !== 'PLAYING') return;
+
+      if (roomState.turnIndex >= roomState.players.length) {
+        roomState.turnIndex = 0;
+      }
+
+      const currentPlayer = roomState.players[roomState.turnIndex];
+      if (currentPlayer && currentPlayer.isBot) {
+        if (botTurnTimeout) clearTimeout(botTurnTimeout);
+        botTurnTimeout = setTimeout(() => executeBotTurn(currentPlayer), 950);
+      }
+    }
+
+    function executeBotTurn(bot) {
+      if (roomState.status !== 'PLAYING') return;
+      const currentBot = roomState.players[roomState.turnIndex];
+      if (!currentBot || currentBot.id !== bot.id || !currentBot.isBot) return;
+
+      if (!Array.isArray(bot.meldsOnTable)) bot.meldsOnTable = [];
+
+      if (roomState.phase === 'DRAW') {
+        const topDiscard = roomState.discardPile[roomState.discardPile.length - 1];
+        let drawFromDiscard = false;
+
+        if (topDiscard) {
+          const testHand = [...bot.hand, topDiscard];
+          const meldsWith = findBestMelds(testHand);
+          const meldsWithout = findBestMelds(bot.hand);
+          if (testHand.length - meldsWith.unmelded.length > bot.hand.length - meldsWithout.unmelded.length) {
+            drawFromDiscard = true;
+          }
+        }
+
+        if (drawFromDiscard && roomState.discardPile.length > 0) {
+          bot.hand.push(roomState.discardPile.pop());
+          roomState.lastAction = `${bot.name} robó del pozo`;
+        } else {
+          if (roomState.deck.length === 0) recycleDiscardIntoDeck();
+          if (roomState.deck.length > 0) {
+            bot.hand.push(roomState.deck.pop());
+          }
+          roomState.lastAction = `${bot.name} robó del mazo`;
+        }
+        bot.handCount = bot.hand.length;
+        roomState.phase = 'DISCARD';
+        soundDrawCard();
+        broadcastState();
+      }
+
+      setTimeout(() => {
+        if (roomState.status !== 'PLAYING') return;
+
+        const meldCheck = findBestMelds(bot.hand);
+        if (meldCheck.melds.length > 0) {
+          for (const meldGroup of meldCheck.melds) {
+            if (bot.hand.length - meldGroup.length >= 1) {
+              const meldIds = new Set(meldGroup.map(c => c.id));
+              bot.hand = bot.hand.filter(c => !meldIds.has(c.id));
+              bot.meldsOnTable.push(sortMeldCards(meldGroup));
+              bot.handCount = bot.hand.length;
+              soundMeldTable();
+              const cardsLabel = meldGroup.map(c => `${c.rankName}${c.suitSymbol}`).join(' ');
+              roomState.lastAction = `${bot.name} bajó grupo a la mesa: ${cardsLabel}`;
+              showToast(`🤖 ${bot.name} bajó un juego a la mesa: ${cardsLabel}`, 'info');
+              triggerBotReaction(bot.id, '😎', '¡Bajé mi juego!');
+              broadcastState();
+            }
+          }
+        }
+
+        if (Math.random() < 0.22) {
+          const funBotReactions = [
+            { emoji: '🤔', label: 'Mmm...' },
+            { emoji: '😂', label: '¡Jajaja!' },
+            { emoji: '🔥', label: '¡Casi listo!' }
+          ];
+          const pick = funBotReactions[Math.floor(Math.random() * funBotReactions.length)];
+          triggerBotReaction(bot.id, pick.emoji, pick.label);
+        }
+
+        const golpeRes = evaluateGolpeEligibility(bot.hand, bot.meldsOnTable, 'DISCARD', !!bot.patoReadyWaitComplete);
+        if (golpeRes.canGolpe) {
+          setTimeout(() => {
+            if (golpeRes.discardedOnGolpe) {
+              bot.hand = bot.hand.filter(c => c.id !== golpeRes.discardedOnGolpe.id);
+              roomState.discardPile.push(golpeRes.discardedOnGolpe);
+            }
+            bot.handCount = bot.hand.length;
+            soundGolpe();
+            triggerRoundEnd(bot, golpeRes);
+          }, 700);
+          return;
+        }
+
+        setTimeout(() => {
+          if (roomState.status !== 'PLAYING') return;
+          if (bot.hand.length > 0) {
+            const afterMeldEval = findBestMelds(bot.hand);
+            let cardToDiscard = null;
+            if (afterMeldEval.unmelded.length > 0) {
+              const nonDuckLoose = afterMeldEval.unmelded.filter(c => c.rank !== 2);
+              const pool = nonDuckLoose.length > 0 ? nonDuckLoose : afterMeldEval.unmelded;
+              cardToDiscard = pool.reduce((max, c) => c.rank > max.rank ? c : max, pool[0]);
+            } else {
+              cardToDiscard = bot.hand[bot.hand.length - 1];
+            }
+
+            const idx = bot.hand.findIndex(c => c.id === cardToDiscard.id);
+            if (idx !== -1) {
+              bot.hand.splice(idx, 1);
+              roomState.discardPile.push(cardToDiscard);
+            }
+            bot.handCount = bot.hand.length;
+            soundDiscardCard();
+            roomState.lastAction = `${bot.name} descartó ${cardToDiscard.rankName}${cardToDiscard.suitSymbol}`;
+          }
+
+          const winEval = evaluateGolpeEligibility(bot.hand, bot.meldsOnTable, 'DRAW', !!bot.patoReadyWaitComplete);
+          if (winEval.canGolpe) {
+            soundGolpe();
+            triggerRoundEnd(bot, winEval);
+            return;
+          }
+
+          const nowReadyWithPato = hasThreeThreePlusPatoReady(bot.hand, bot.meldsOnTable);
+          if (nowReadyWithPato && !bot.patoReadyWaitComplete) {
+            bot.patoReadyWaitComplete = true;
+            showToast(`🦆 ${bot.name} armó su juego con Pato. ¡Podrá golpear en la siguiente vuelta!`, 'warning');
+          } else if (!nowReadyWithPato) {
+            bot.patoReadyWaitComplete = false;
+          }
+
+          advanceTurn();
+        }, 750);
+      }, 650);
+    }
+
+    function advanceTurn() {
+      if (roomState.players.length === 0) return;
+      roomState.turnIndex = (roomState.turnIndex + 1) % roomState.players.length;
+      roomState.phase = 'DRAW';
+      const nextPlayer = roomState.players[roomState.turnIndex];
+      roomState.lastAction = `Turno de ${nextPlayer ? nextPlayer.name : 'Jugador'}`;
+      broadcastState();
+      checkBotTurn();
+    }
+
+    function recycleDiscardIntoDeck() {
+      if (roomState.discardPile.length <= 1) return;
+      const top = roomState.discardPile.pop();
+      const cardsToReshuffle = [...roomState.discardPile];
+
+      for (let i = cardsToReshuffle.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [cardsToReshuffle[i], cardsToReshuffle[j]] = [cardsToReshuffle[j], cardsToReshuffle[i]];
+      }
+
+      roomState.deck = cardsToReshuffle;
+      roomState.discardPile = [top];
+      roomState.lastAction = '🔄 ¡El mazo se agotó! Se barajaron las cartas del pozo aleatoriamente.';
+      showToast('🔄 ¡Mazo agotado! Las cartas del centro fueron barajadas aleatoriamente.', 'info');
+    }
+
+    /* ----------------------------------------------------
+       8. AUTHORITATIVE HOST ACTION HANDLERS & USER ACTIONS
+       ---------------------------------------------------- */
+    function isMyTurn() {
+      const currentPlayer = roomState.players[roomState.turnIndex];
+      return currentPlayer && currentPlayer.id === localPlayer.id && roomState.status === 'PLAYING';
+    }
+
+    function handleHostDraw(playerId, source) {
+      const currentPlayer = roomState.players[roomState.turnIndex];
+      if (!currentPlayer || currentPlayer.id !== playerId || roomState.phase !== 'DRAW') return;
+
+      let drawnCard = null;
+      if (source === 'DISCARD') {
+        if (roomState.discardPile.length === 0) return;
+        drawnCard = roomState.discardPile.pop();
+        roomState.lastAction = `${currentPlayer.name} robó del pozo`;
+      } else {
+        if (roomState.deck.length === 0) recycleDiscardIntoDeck();
+        if (roomState.deck.length === 0) return;
+        drawnCard = roomState.deck.pop();
+        roomState.lastAction = `${currentPlayer.name} robó del mazo`;
+      }
+
+      currentPlayer.hand.push(drawnCard);
+      currentPlayer.handCount = currentPlayer.hand.length;
+      roomState.phase = 'DISCARD';
+      soundDrawCard();
+      broadcastState();
+    }
+
+    function handleHostLowerMeld(playerId, cardIds) {
+      const currentPlayer = roomState.players[roomState.turnIndex];
+      if (!currentPlayer || currentPlayer.id !== playerId || roomState.status !== 'PLAYING') return;
+      if (!Array.isArray(cardIds) || cardIds.length < 3) return;
+
+      const selectedCards = currentPlayer.hand.filter(c => cardIds.includes(c.id));
+      if (selectedCards.length !== cardIds.length) return;
+
+      if (!isValidMeldGroup(selectedCards)) {
+        if (playerId === localPlayer.id) {
+          showToast('Las cartas seleccionadas no forman un Trío, Cuarteto o Escalera válida.', 'warning');
+        }
+        return;
+      }
+
+      const sortedGroup = sortMeldCards(selectedCards);
+      currentPlayer.hand = currentPlayer.hand.filter(c => !cardIds.includes(c.id));
+      currentPlayer.handCount = currentPlayer.hand.length;
+      if (!Array.isArray(currentPlayer.meldsOnTable)) currentPlayer.meldsOnTable = [];
+      currentPlayer.meldsOnTable.push(sortedGroup);
+
+      const groupStr = sortedGroup.map(c => `${c.rankName}${c.suitSymbol}`).join(' ');
+      roomState.lastAction = `${currentPlayer.name} bajó un juego a la mesa (${groupStr})`;
+      soundMeldTable();
+      showToast(`🃏 ${currentPlayer.name} bajó a la mesa: ${groupStr}`, 'success');
+
+      if (currentPlayer.hand.length === 0) {
+        const autoGolpe = evaluateGolpeEligibility(currentPlayer.hand, currentPlayer.meldsOnTable, 'DRAW', !!currentPlayer.patoReadyWaitComplete);
+        if (autoGolpe.canGolpe) {
+          soundGolpe();
+          triggerRoundEnd(currentPlayer, autoGolpe);
+          return;
+        }
+      }
+
+      broadcastState();
+    }
+
+    function handleHostDiscard(playerId, cardId) {
+      const currentPlayer = roomState.players[roomState.turnIndex];
+      if (!currentPlayer || currentPlayer.id !== playerId || roomState.phase !== 'DISCARD') return;
+
+      const idx = currentPlayer.hand.findIndex(c => c.id === cardId);
+      if (idx === -1) return;
+
+      const discardedCard = currentPlayer.hand.splice(idx, 1)[0];
+      roomState.discardPile.push(discardedCard);
+      currentPlayer.handCount = currentPlayer.hand.length;
+      soundDiscardCard();
+
+      if (currentPlayer.hand.length === 0) {
+        const autoGolpe = evaluateGolpeEligibility(currentPlayer.hand, currentPlayer.meldsOnTable, 'DRAW', !!currentPlayer.patoReadyWaitComplete);
+        if (autoGolpe.canGolpe) {
+          soundGolpe();
+          triggerRoundEnd(currentPlayer, autoGolpe);
+          return;
+        }
+      }
+
+      const readyWithPatoNow = hasThreeThreePlusPatoReady(currentPlayer.hand, currentPlayer.meldsOnTable);
+      if (readyWithPatoNow && !currentPlayer.patoReadyWaitComplete) {
+        currentPlayer.patoReadyWaitComplete = true;
+        roomState.lastAction = `🦆 ${currentPlayer.name} quedó listo con Pato (esperando 1 vuelta)`;
+        showToast(`🦆 ${currentPlayer.name} tiene listos sus 2 grupos de 3 y su Pato. ¡Debe pasar 1 vuelta más para golpear!`, 'warning', 4500);
+      } else if (!readyWithPatoNow) {
+        currentPlayer.patoReadyWaitComplete = false;
+      }
+
+      advanceTurn();
+    }
+
+    function handleHostDeclareGolpe(playerId) {
+      const currentPlayer = roomState.players[roomState.turnIndex];
+      if (!currentPlayer || currentPlayer.id !== playerId || roomState.status !== 'PLAYING') return;
+
+      const golpeRes = evaluateGolpeEligibility(
+        currentPlayer.hand,
+        currentPlayer.meldsOnTable,
+        roomState.phase,
+        !!currentPlayer.patoReadyWaitComplete
+      );
+      if (golpeRes.canGolpe) {
+        if (golpeRes.discardedOnGolpe) {
+          currentPlayer.hand = currentPlayer.hand.filter(c => c.id !== golpeRes.discardedOnGolpe.id);
+          roomState.discardPile.push(golpeRes.discardedOnGolpe);
+          currentPlayer.handCount = currentPlayer.hand.length;
+        }
+        soundGolpe();
+        triggerRoundEnd(currentPlayer, golpeRes);
+      }
+    }
+
+    function userDrawFromDeck() {
+      if (!isMyTurn() || roomState.phase !== 'DRAW') {
+        if (isMyTurn() && roomState.phase === 'DISCARD') {
+          showToast('Ya robaste carta. Baja un grupo o descarta 1 carta.', 'info');
+        }
+        return;
+      }
+      sendActionToHostOrExecute({
+        type: 'ACTION_DRAW',
+        playerId: localPlayer.id,
+        source: 'DECK'
+      });
+    }
+
+    function userDrawFromDiscard() {
+      if (!isMyTurn() || roomState.phase !== 'DRAW') {
+        if (isMyTurn() && roomState.phase === 'DISCARD') {
+          showToast('Ya robaste carta. Baja un grupo o descarta 1 carta.', 'info');
+        }
+        return;
+      }
+      if (roomState.discardPile.length === 0) return;
+      sendActionToHostOrExecute({
+        type: 'ACTION_DRAW',
+        playerId: localPlayer.id,
+        source: 'DISCARD'
+      });
+    }
+
+    function selectHandCard(cardId) {
+      soundClick();
+      const idx = selectedCardIds.indexOf(cardId);
+      if (idx !== -1) {
+        selectedCardIds.splice(idx, 1);
+      } else {
+        selectedCardIds.push(cardId);
+      }
+      renderPlayerHand();
+      updateActionButtons();
+    }
+
+    function userLowerMeldToTable() {
+      if (!isMyTurn()) {
+        showToast('Espera tu turno para bajar grupos a la mesa.', 'warning');
+        return;
+      }
+      if (roomState.phase !== 'DISCARD') {
+        showToast('Primero debes robar una carta.', 'warning');
+        return;
+      }
+
+      const selectedCards = localPlayer.hand.filter(c => selectedCardIds.includes(c.id));
+      if (selectedCards.length >= 3) {
+        if (!isValidMeldGroup(selectedCards)) {
+          showToast('Las cartas seleccionadas no forman un Trío, Cuarteto o Escalera válida.', 'error');
+          return;
+        }
+        const idsToLower = [...selectedCardIds];
+        selectedCardIds = [];
+        sendActionToHostOrExecute({
+          type: 'ACTION_MELD',
+          playerId: localPlayer.id,
+          cardIds: idsToLower
+        });
+        return;
+      }
+
+      const autoEval = findBestMelds(localPlayer.hand);
+      if (autoEval.melds.length > 0) {
+        const firstMeld = autoEval.melds[0];
+        const idsToLower = firstMeld.map(c => c.id);
+        selectedCardIds = [];
+        sendActionToHostOrExecute({
+          type: 'ACTION_MELD',
+          playerId: localPlayer.id,
+          cardIds: idsToLower
+        });
+      } else {
+        showToast('Selecciona 3 o más cartas que formen un Trío o Escalera para bajarlas.', 'warning');
+      }
+    }
+
+    function userDiscardSelectedCard() {
+      if (!isMyTurn() || roomState.phase !== 'DISCARD') return;
+      if (selectedCardIds.length !== 1) {
+        showToast('Selecciona exactamente 1 carta para descartar.', 'warning');
+        return;
+      }
+      const cardId = selectedCardIds[0];
+      selectedCardIds = [];
+      sendActionToHostOrExecute({
+        type: 'ACTION_DISCARD',
+        playerId: localPlayer.id,
+        cardId
+      });
+    }
+
+    function userDeclareGolpe() {
+      if (!isMyTurn()) return;
+      const golpeRes = evaluateGolpeEligibility(
+        localPlayer.hand,
+        localPlayer.meldsOnTable,
+        roomState.phase,
+        !!localPlayer.patoReadyWaitComplete
+      );
+      if (golpeRes.canGolpe) {
+        selectedCardIds = [];
+        sendActionToHostOrExecute({
+          type: 'ACTION_GOLPE',
+          playerId: localPlayer.id
+        });
+      } else if (golpeRes.patoPendingWait) {
+        showToast('🦆 ¡Ya tienes tus 2 grupos de 3 + Pato! Termina tu turno y espera 1 vuelta más para golpear.', 'warning', 4500);
+      } else {
+        showToast('Condición de Golpe: 2 grupos de 3 + Pato (tras 1 vuelta), o grupo de 4 + grupo de 3.', 'warning');
+      }
+    }
+
+    function moveHandCardOrder(fromIndex, toIndex) {
+      if (fromIndex < 0 || toIndex < 0 || fromIndex >= localPlayer.hand.length || toIndex >= localPlayer.hand.length) return;
+      if (fromIndex === toIndex) return;
+      soundClick();
+      const [movedCard] = localPlayer.hand.splice(fromIndex, 1);
+      localPlayer.hand.splice(toIndex, 0, movedCard);
+      const me = roomState.players.find(p => p.id === localPlayer.id);
+      if (me) me.hand = localPlayer.hand;
+      renderPlayerHand();
+    }
+
+    function shiftCardInHand(event, cardIndex, direction) {
+      event.stopPropagation();
+      const targetIndex = cardIndex + direction;
+      moveHandCardOrder(cardIndex, targetIndex);
+    }
+
+    function sortHandBySuit() {
+      soundClick();
+      const suitOrder = { 'H': 1, 'D': 2, 'C': 3, 'S': 4 };
+      localPlayer.hand.sort((a, b) => {
+        if (suitOrder[a.suit] !== suitOrder[b.suit]) {
+          return suitOrder[a.suit] - suitOrder[b.suit];
+        }
+        return a.rank - b.rank;
+      });
+      const me = roomState.players.find(p => p.id === localPlayer.id);
+      if (me) me.hand = localPlayer.hand;
+      renderPlayerHand();
+    }
+
+    function sortHandByRank() {
+      soundClick();
+      localPlayer.hand.sort((a, b) => {
+        if (a.rank !== b.rank) {
+          return a.rank - b.rank;
+        }
+        return a.suit.localeCompare(b.suit);
+      });
+      const me = roomState.players.find(p => p.id === localPlayer.id);
+      if (me) me.hand = localPlayer.hand;
+      renderPlayerHand();
+    }
+
+    /* ----------------------------------------------------
+       9. UI RENDERING (DIDACTIC HANDS, CARD BACKS, REACTIONS & MELDS)
+       ---------------------------------------------------- */
+    function renderMiniCardHTML(c) {
+      const colorClass = c.isRed ? 'card-red' : 'card-black';
+      return `
+        <div class="meld-card-anim w-8 h-11 sm:w-9 sm:h-12 bg-white rounded-md border border-slate-300 shadow flex flex-col items-center justify-between p-0.5 text-[10px] sm:text-[11px] font-black select-none ${colorClass}">
+          <span class="leading-none self-start">${c.rankName}</span>
+          <span class="text-xs sm:text-sm leading-none">${c.suitSymbol}</span>
+          <span class="leading-none self-end rotate-180 text-[8px]">${c.rankName}</span>
+        </div>
+      `;
+    }
+
+    function renderDidacticCardBackFanHTML(cardCount, isCurrentTurn) {
+      const safeCount = Math.max(0, Math.min(10, cardCount));
+      if (safeCount === 0) {
+        return `
+          <div class="flex items-center justify-center py-1 px-3 bg-emerald-950/60 border border-emerald-600/40 rounded-xl text-[10px] text-emerald-300 font-bold">
+            👐 Sin cartas en mano (0)
+          </div>
+        `;
+      }
+
+      let cardsBackHTML = '';
+      const mid = (safeCount - 1) / 2;
+      for (let i = 0; i < safeCount; i++) {
+        const offset = i - mid;
+        const angle = offset * 7;
+        const yOffset = Math.abs(offset) * 1.6;
+        cardsBackHTML += `
+          <div style="transform: rotate(${angle}deg) translateY(${yOffset}px); margin-left: ${i === 0 ? '0px' : '-10px'};"
+               class="w-6 h-9 sm:w-7 sm:h-10 rounded-md card-back-pattern border ${isCurrentTurn ? 'border-amber-300 shadow-amber-500/30' : 'border-indigo-300/80'} shadow-md flex items-center justify-center relative shrink-0 transition-transform">
+            <div class="w-4 h-7 border border-indigo-200/30 rounded-sm flex items-center justify-center">
+              <span class="text-[7px] text-amber-300/80 font-black">♠</span>
+            </div>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="flex flex-col items-center justify-center bg-slate-950/65 border border-slate-800/90 rounded-xl px-2.5 py-1.5 relative overflow-visible" title="Vista didáctica: Manos sosteniendo ${cardCount} cartas vistas por detrás">
+          <div class="flex items-center justify-center player-hands-bob">
+            <span class="text-base sm:text-lg -mr-1.5 z-20 select-none filter drop-shadow">🫲</span>
+            <div class="flex items-center justify-center px-1 py-0.5 z-10">
+              ${cardsBackHTML}
+            </div>
+            <span class="text-base sm:text-lg -ml-1.5 z-20 select-none filter drop-shadow">🫱</span>
+          </div>
+          <span class="text-[9px] font-extrabold text-indigo-200 mt-1 tracking-wide uppercase">
+            ${cardCount} ${cardCount === 1 ? 'Carta oculta' : 'Cartas ocultas'} en mano
+          </span>
+        </div>
+      `;
+    }
+
+    function getReactionBubbleHTML(playerId) {
+      const react = activeReactions[playerId];
+      if (!react) return '';
+      return `
+        <div class="reaction-bubble-anim inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 px-2.5 py-0.5 rounded-full shadow-xl border-2 border-white z-40 whitespace-nowrap">
+          <span class="text-base sm:text-lg leading-none">${react.emoji}</span>
+          ${react.label ? `<span class="text-[10px] font-black tracking-tight">${react.label}</span>` : ''}
+        </div>
+      `;
+    }
+
+    function sendQuickReaction(emoji, label = '') {
+      soundClick();
+      sendActionToHostOrExecute({
+        type: 'PLAYER_REACTION',
+        playerId: localPlayer.id,
+        emoji,
+        label
+      });
+      if (!localPlayer.isHost && !roomState.isSoloBot) {
+        displayPlayerReaction(localPlayer.id, emoji, label);
+      }
+    }
+
+    function triggerBotReaction(botId, emoji, label = '') {
+      processPlayerActionOnHost({
+        type: 'PLAYER_REACTION',
+        playerId: botId,
+        emoji,
+        label
+      });
+    }
+
+    function displayPlayerReaction(playerId, emoji, label = '') {
+      activeReactions[playerId] = { emoji, label, timestamp: Date.now() };
+      soundReaction(emoji);
+
+      if (reactionTimeouts[playerId]) {
+        clearTimeout(reactionTimeouts[playerId]);
+      }
+
+      renderOpponents();
+      renderLocalSeatHeader();
+
+      reactionTimeouts[playerId] = setTimeout(() => {
+        delete activeReactions[playerId];
+        renderOpponents();
+        renderLocalSeatHeader();
+      }, 3200);
+    }
+
+    function renderLocalSeatHeader() {
+      const avatarEl = document.getElementById('localSeatAvatar');
+      const nameEl = document.getElementById('localSeatName');
+      const ringEl = document.getElementById('localPlayerTurnRing');
+      const anchorEl = document.getElementById('reaction-anchor-local');
+
+      if (avatarEl) avatarEl.innerText = localPlayer.avatar;
+      if (nameEl) nameEl.innerText = `${localPlayer.name} (Tú)`;
+      if (ringEl) {
+        const myTurn = isMyTurn();
+        ringEl.className = `w-9 h-9 rounded-xl bg-slate-800 border-2 ${myTurn ? 'border-amber-400 ring-2 ring-amber-400/50 scale-105' : 'border-slate-700'} flex items-center justify-center text-xl shadow transition`;
+      }
+      if (anchorEl) {
+        anchorEl.innerHTML = getReactionBubbleHTML(localPlayer.id);
+      }
+    }
+
+    function updateUI() {
+      if (!roomState || !Array.isArray(roomState.players)) return;
+      syncLocalPlayerFromState();
+
+      const myTurn = isMyTurn();
+      let hintMsg = roomState.lastAction || 'Partida en curso';
+      if (myTurn) {
+        hintMsg = roomState.phase === 'DRAW'
+          ? '🎯 TU TURNO (Paso 1): Roba 1 carta del Mazo o del Pozo'
+          : '✋ TU TURNO (Paso 2): Baja grupos a la mesa o selecciona 1 carta para Descartar';
+      }
+      document.getElementById('gameActionBanner').innerText = hintMsg;
+      document.getElementById('mobileActionBanner').innerText = hintMsg;
+
+      renderLocalSeatHeader();
+      renderOpponents();
+      renderTableMeldsBoard();
+
+      document.getElementById('deckCardCount').innerText = roomState.deck ? roomState.deck.length : 0;
+
+      const discardTopEl = document.getElementById('discardCardTop');
+      if (roomState.discardPile && roomState.discardPile.length > 0) {
+        const topCard = roomState.discardPile[roomState.discardPile.length - 1];
+        discardTopEl.className = `w-16 h-24 sm:w-20 sm:h-28 card-base border-2 border-amber-400 rounded-xl flex flex-col justify-between p-1.5 shadow-xl ${topCard.isRed ? 'card-red' : 'card-black'}`;
+        discardTopEl.innerHTML = `
+          <div class="flex justify-between items-center text-xs font-bold">
+            <span>${topCard.rankName}</span>
+            <span>${topCard.suitSymbol}</span>
+          </div>
+          <div class="text-2xl sm:text-3xl text-center font-black">${topCard.suitSymbol}</div>
+          <div class="flex justify-between items-center text-xs font-bold rotate-180">
+            <span>${topCard.rankName}</span>
+            <span>${topCard.suitSymbol}</span>
+          </div>
+        `;
+      } else {
+        discardTopEl.className = 'w-16 h-24 sm:w-20 sm:h-28 bg-slate-800/80 border-2 border-slate-700 border-dashed rounded-xl flex items-center justify-center';
+        discardTopEl.innerHTML = `<span class="text-xs text-slate-500 font-bold">VACÍO</span>`;
+      }
+
+      renderPlayerHand();
+      updateActionButtons();
+    }
+
+    function renderOpponents() {
+      const container = document.getElementById('opponentsContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      roomState.players.forEach((p, idx) => {
+        if (p.id === localPlayer.id) return;
+
+        const isCurrentTurn = idx === roomState.turnIndex && roomState.status === 'PLAYING';
+        const playerMelds = Array.isArray(p.meldsOnTable) ? p.meldsOnTable : [];
+        const cardCount = Array.isArray(p.hand) ? p.hand.length : (p.handCount || 0);
+
+        const card = document.createElement('div');
+        card.className = `bg-slate-900/95 border-2 ${isCurrentTurn ? 'border-amber-400 ring-2 ring-amber-400/40 scale-[1.03]' : 'border-slate-800'} px-3 py-2 rounded-2xl flex flex-col justify-between gap-2 transition shadow-xl min-w-[210px] max-w-[290px] relative`;
+
+        let opponentMeldsHTML = '';
+        if (playerMelds.length > 0) {
+          const groupsHTML = playerMelds.map(group => `
+            <div class="flex items-center gap-0.5 bg-emerald-950/85 border border-emerald-500/60 p-1 rounded-lg shadow">
+              ${group.map(c => renderMiniCardHTML(c)).join('')}
+            </div>
+          `).join('');
+          opponentMeldsHTML = `
+            <div class="border-t border-slate-800/90 pt-1.5">
+              <span class="text-[9px] font-extrabold uppercase text-emerald-400 flex items-center gap-1 mb-1">
+                <i class="fas fa-check-circle"></i> Cartas Bajadas (${playerMelds.length}):
+              </span>
+              <div class="flex flex-wrap gap-1">${groupsHTML}</div>
+            </div>
+          `;
+        } else {
+          opponentMeldsHTML = `
+            <div class="border-t border-slate-800/60 pt-1 text-center">
+              <span class="text-[9px] text-slate-500 font-semibold italic">Sin juegos bajados aún</span>
+            </div>
+          `;
+        }
+
+        const reactionBubble = getReactionBubbleHTML(p.id);
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between gap-2 relative">
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="relative shrink-0 w-9 h-9 rounded-xl bg-slate-800 border ${isCurrentTurn ? 'border-amber-400' : 'border-slate-700'} flex items-center justify-center text-xl shadow-inner">
+                <span>${p.avatar}</span>
+                ${isCurrentTurn ? '<span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-400 rounded-full animate-ping"></span>' : ''}
+              </div>
+              <div class="min-w-0">
+                <div class="text-xs font-extrabold text-slate-100 flex items-center gap-1.5 flex-wrap">
+                  <span class="truncate">${p.name}</span>
+                  ${p.isBot ? '<span class="text-[9px] bg-indigo-900/90 text-indigo-300 border border-indigo-700/60 px-1.5 py-0.2 rounded font-black shrink-0">BOT</span>' : ''}
+                  ${isCurrentTurn ? '<span class="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-400/40 px-1.5 py-0.2 rounded font-black">SU TURNO</span>' : ''}
+                </div>
+                <div class="mt-0.5 min-h-[4px] flex items-center">
+                  ${reactionBubble}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          ${renderDidacticCardBackFanHTML(cardCount, isCurrentTurn)}
+          ${opponentMeldsHTML}
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderTableMeldsBoard() {
+      const board = document.getElementById('tableMeldsBoard');
+      const countBadge = document.getElementById('totalTableMeldsCount');
+      if (!board || !countBadge) return;
+
+      board.innerHTML = '';
+      let totalGroups = 0;
+
+      roomState.players.forEach(p => {
+        const pMelds = Array.isArray(p.meldsOnTable) ? p.meldsOnTable : [];
+        pMelds.forEach((group, gIdx) => {
+          totalGroups++;
+          const groupBox = document.createElement('div');
+          const isMe = p.id === localPlayer.id;
+          groupBox.className = `flex flex-col bg-slate-900/90 border ${isMe ? 'border-amber-400/70' : 'border-emerald-500/50'} rounded-xl p-1.5 shadow-md`;
+
+          groupBox.innerHTML = `
+            <div class="flex items-center justify-between gap-2 mb-1 px-0.5">
+              <span class="text-[10px] font-bold ${isMe ? 'text-amber-300' : 'text-emerald-300'} truncate">
+                ${p.avatar} ${isMe ? 'Tú' : p.name}
+              </span>
+              <span class="text-[9px] bg-slate-800 text-slate-400 px-1.5 rounded font-semibold">G${gIdx + 1}</span>
+            </div>
+            <div class="flex items-center gap-1">
+              ${group.map(c => renderMiniCardHTML(c)).join('')}
+            </div>
+          `;
+          board.appendChild(groupBox);
+        });
+      });
+
+      countBadge.innerText = `${totalGroups} ${totalGroups === 1 ? 'Grupo' : 'Grupos'}`;
+
+      if (totalGroups === 0) {
+        board.innerHTML = `
+          <div class="w-full text-center py-3 text-xs text-slate-400 font-medium">
+            Aún no hay grupos bajados en la mesa. Selecciona 3+ cartas y pulsa <span class="text-emerald-400 font-bold">"Bajar Grupo a la Mesa"</span>.
+          </div>
+        `;
+      }
+    }
+
+    function renderPlayerHand() {
+      const container = document.getElementById('playerHandContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const handIds = new Set(localPlayer.hand.map(c => c.id));
+      selectedCardIds = selectedCardIds.filter(id => handIds.has(id));
+
+      const meldEval = findBestMelds(localPlayer.hand);
+      const golpeRes = evaluateGolpeEligibility(
+        localPlayer.hand,
+        localPlayer.meldsOnTable,
+        roomState.phase,
+        !!localPlayer.patoReadyWaitComplete
+      );
+
+      const badgeText = document.getElementById('meldStatusText');
+      const selectedCards = localPlayer.hand.filter(c => selectedCardIds.includes(c.id));
+
+      if (golpeRes.canGolpe) {
+        badgeText.className = 'text-[11px] font-bold text-amber-300 animate-pulse';
+        badgeText.innerText = `🔥 ¡GOLPE LISTO! ${golpeRes.type}`;
+      } else if (golpeRes.patoPendingWait) {
+        badgeText.className = 'text-[11px] font-bold text-amber-300';
+        badgeText.innerText = `🦆 ¡Juego con Pato armado! Termina tu turno y espera 1 vuelta más para golpear.`;
+      } else if (selectedCards.length >= 3 && isValidMeldGroup(selectedCards)) {
+        badgeText.className = 'text-[11px] font-bold text-emerald-300';
+        badgeText.innerText = `✅ ¡Grupo válido seleccionado! Pulsa "Bajar Grupo a la Mesa"`;
+      } else {
+        const loweredCount = (localPlayer.meldsOnTable || []).length;
+        const usedInHand = localPlayer.hand.length - meldEval.unmelded.length;
+        const hasPato = localPlayer.hand.some(c => c.rank === 2);
+        badgeText.className = 'text-[11px] font-bold text-slate-300';
+        badgeText.innerText = `En mesa: ${loweredCount} | En mano: ${usedInHand}/${localPlayer.hand.length} ${hasPato ? '| 🦆 Tienes Pato (2)' : ''} | Arrastra o usa ◀ ▶`;
+      }
+
+      const meldedCardIds = new Map();
+      const colorPalette = [
+        'border-emerald-400 ring-2 ring-emerald-400/40',
+        'border-cyan-400 ring-2 ring-cyan-400/40',
+        'border-purple-400 ring-2 ring-purple-400/40'
+      ];
+      meldEval.melds.forEach((meld, mIdx) => {
+        const colorClass = colorPalette[mIdx % colorPalette.length];
+        meld.forEach(c => meldedCardIds.set(c.id, colorClass));
+      });
+
+      localPlayer.hand.forEach((c, cardIdx) => {
+        const isSelected = selectedCardIds.includes(c.id);
+        const meldClass = meldedCardIds.get(c.id) || 'border-slate-300';
+        const isDuckTwo = c.rank === 2;
+
+        const cardEl = document.createElement('div');
+        cardEl.draggable = true;
+        cardEl.onclick = () => selectHandCard(c.id);
+
+        cardEl.ondragstart = (e) => {
+          draggedCardIndex = cardIdx;
+          e.dataTransfer.effectAllowed = 'move';
+          setTimeout(() => cardEl.classList.add('opacity-50'), 0);
+        };
+        cardEl.ondragend = () => {
+          draggedCardIndex = null;
+          cardEl.classList.remove('opacity-50');
+        };
+        cardEl.ondragover = (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        };
+        cardEl.ondrop = (e) => {
+          e.preventDefault();
+          if (draggedCardIndex !== null && draggedCardIndex !== cardIdx) {
+            moveHandCardOrder(draggedCardIndex, cardIdx);
+          }
+          draggedCardIndex = null;
+        };
+
+        cardEl.className = `group w-16 h-24 sm:w-20 sm:h-28 card-base rounded-xl border-2 ${isSelected ? 'card-selected' : meldClass} card-hover-effect flex flex-col justify-between p-1.5 cursor-grab active:cursor-grabbing shadow-lg select-none relative shrink-0 ${c.isRed ? 'card-red' : 'card-black'}`;
+
+        cardEl.innerHTML = `
+          <div class="flex justify-between items-center text-[11px] sm:text-xs font-bold leading-none">
+            <span>${c.rankName}</span>
+            <span>${c.suitSymbol}</span>
+          </div>
+
+          <div class="text-2xl sm:text-3xl text-center font-black leading-none flex flex-col items-center justify-center">
+            <span>${c.suitSymbol}</span>
+            ${isDuckTwo ? '<span class="text-[9px] bg-amber-100 text-amber-900 border border-amber-400 px-1 rounded font-black mt-0.5 leading-tight">🦆 PATO</span>' : ''}
+          </div>
+
+          <div class="flex items-center justify-between w-full z-30">
+            <button type="button" onclick="shiftCardInHand(event, ${cardIdx}, -1)" ${cardIdx === 0 ? 'disabled' : ''} title="Mover izquierda" class="w-5 h-5 rounded bg-slate-900/80 hover:bg-amber-500 text-white hover:text-slate-950 text-[9px] font-black flex items-center justify-center disabled:opacity-20 transition">
+              ◀
+            </button>
+            <span class="text-[9px] font-bold opacity-75">${c.rankName}${c.suitSymbol}</span>
+            <button type="button" onclick="shiftCardInHand(event, ${cardIdx}, 1)" ${cardIdx === localPlayer.hand.length - 1 ? 'disabled' : ''} title="Mover derecha" class="w-5 h-5 rounded bg-slate-900/80 hover:bg-amber-500 text-white hover:text-slate-950 text-[9px] font-black flex items-center justify-center disabled:opacity-20 transition">
+              ▶
+            </button>
+          </div>
+        `;
+        container.appendChild(cardEl);
+      });
+    }
+
+    function updateActionButtons() {
+      const myTurn = isMyTurn();
+      const inDiscardPhase = roomState.phase === 'DISCARD';
+
+      const btnDiscard = document.getElementById('btnDiscardCard');
+      btnDiscard.disabled = !myTurn || !inDiscardPhase || selectedCardIds.length !== 1;
+
+      const btnLowerMeld = document.getElementById('btnLowerMeld');
+      const btnLowerMeldText = document.getElementById('btnLowerMeldText');
+      const selectedCards = localPlayer.hand.filter(c => selectedCardIds.includes(c.id));
+      const manualValidMeld = selectedCards.length >= 3 && isValidMeldGroup(selectedCards);
+      const autoMeldEval = findBestMelds(localPlayer.hand);
+      const hasAutoMeld = autoMeldEval.melds.length > 0;
+
+      if (myTurn && inDiscardPhase && (manualValidMeld || (selectedCardIds.length === 0 && hasAutoMeld))) {
+        btnLowerMeld.disabled = false;
+        btnLowerMeldText.innerText = manualValidMeld
+          ? `Bajar Seleccionadas (${selectedCards.length})`
+          : `Bajar Grupo (${autoMeldEval.melds[0].length} Cartas)`;
+      } else {
+        btnLowerMeld.disabled = true;
+        btnLowerMeldText.innerText = 'Bajar Grupo a la Mesa';
+      }
+
+      const golpeRes = evaluateGolpeEligibility(
+        localPlayer.hand,
+        localPlayer.meldsOnTable,
+        roomState.phase,
+        !!localPlayer.patoReadyWaitComplete
+      );
+      const btnGolpe = document.getElementById('btnGolpe');
+
+      if (myTurn && golpeRes.canGolpe) {
+        btnGolpe.disabled = false;
+        btnGolpe.className = 'bg-gradient-to-r from-red-600 to-amber-500 hover:from-red-500 hover:to-amber-400 text-white font-black px-4 py-1.5 rounded-xl text-xs sm:text-sm transition transform scale-105 golpe-glow-btn flex items-center gap-1.5 cursor-pointer';
+        btnGolpe.innerHTML = '<span>🔥</span><span>¡GOLPE!</span>';
+      } else if (myTurn && golpeRes.patoPendingWait) {
+        btnGolpe.disabled = false;
+        btnGolpe.className = 'bg-amber-950/90 border border-amber-500/70 text-amber-300 font-black px-3.5 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer';
+        btnGolpe.innerHTML = '<span>🦆</span><span>Pato Listo (Espera 1 Vuelta)</span>';
+      } else {
+        btnGolpe.disabled = true;
+        btnGolpe.className = 'bg-slate-800 text-slate-500 font-black px-4 py-1.5 rounded-xl text-xs sm:text-sm transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 border border-slate-700';
+        btnGolpe.innerHTML = '<span>🔥</span><span>¡GOLPE!</span>';
+      }
+    }
+
+    /* ----------------------------------------------------
+       10. ROUND END, RESTART, LEAVE & CHAT
+       ---------------------------------------------------- */
+    function triggerRoundEnd(winner, golpeRes) {
+      roomState.status = 'ROUND_END';
+      roomState.roundWinner = { id: winner.id, name: winner.name, avatar: winner.avatar };
+      roomState.roundGolpeInfo = golpeRes;
+
+      displayRoundEndModal(roomState.roundWinner, golpeRes);
+      broadcastState();
+    }
+
+    function displayRoundEndModal(winner, golpeRes) {
+      try {
+        confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+      } catch (e) {}
+
+      document.getElementById('winnerTitle').innerText = `¡GOLPE DE ${winner.name.toUpperCase()}!`;
+      document.getElementById('winnerSubtitle').innerText = `${golpeRes.type}`;
+
+      const breakdown = document.getElementById('roundBreakdown');
+      breakdown.innerHTML = '';
+
+      if (golpeRes.melds && golpeRes.melds.length > 0) {
+        const meldHeader = document.createElement('div');
+        meldHeader.className = 'text-xs font-bold text-amber-400 uppercase tracking-wider mb-1';
+        meldHeader.innerText = 'Juegos Bajados y Armados por el Ganador:';
+        breakdown.appendChild(meldHeader);
+
+        golpeRes.melds.forEach((m, idx) => {
+          const row = document.createElement('div');
+          row.className = 'bg-slate-900 border border-slate-700 p-2 rounded-xl text-xs flex items-center justify-between';
+          const cardsStr = m.map(c => `${c.rankName}${c.suitSymbol}`).join('  ');
+          row.innerHTML = `<span class="font-bold text-slate-300">Grupo ${idx + 1}:</span> <span class="font-black text-amber-300">${cardsStr}</span>`;
+          breakdown.appendChild(row);
+        });
+      }
+
+      if (golpeRes.unmelded && golpeRes.unmelded.length > 0) {
+        const looseCard = golpeRes.unmelded[0];
+        const looseRow = document.createElement('div');
+        looseRow.className = 'bg-amber-950/60 border border-amber-700/50 p-2 rounded-xl text-xs flex items-center justify-between mt-2';
+        looseRow.innerHTML = `<span class="font-bold text-amber-300">🦆 Carta Pato de Cierre:</span> <span class="font-black text-white">${looseCard.rankName}${looseCard.suitSymbol} (Pato 2)</span>`;
+        breakdown.appendChild(looseRow);
+      }
+
+      const allTableHeader = document.createElement('div');
+      allTableHeader.className = 'text-xs font-bold text-emerald-400 uppercase tracking-wider mt-3 mb-1';
+      allTableHeader.innerText = 'Resumen de la Mesa:';
+      breakdown.appendChild(allTableHeader);
+
+      roomState.players.forEach(p => {
+        const pMelds = Array.isArray(p.meldsOnTable) ? p.meldsOnTable : [];
+        const pRow = document.createElement('div');
+        pRow.className = 'bg-slate-900/70 border border-slate-800 px-3 py-1.5 rounded-lg text-xs flex justify-between items-center';
+        pRow.innerHTML = `
+          <span>${p.avatar} <strong>${p.name}</strong></span>
+          <span class="text-emerald-300 font-bold">${pMelds.length} grupos en mesa | ${(p.hand || []).length} en mano</span>
+        `;
+        breakdown.appendChild(pRow);
+      });
+
+      document.getElementById('roundResultModal').classList.remove('hidden');
+    }
+
+    function restartGameRound() {
+      document.getElementById('roundResultModal').classList.add('hidden');
+      if (localPlayer.isHost || roomState.isSoloBot) {
+        roomState.status = 'PLAYING';
+        initGameRound();
+        broadcastState();
+      } else {
+        sendActionToHostOrExecute({ type: 'ACTION_RESTART_ROUND', playerId: localPlayer.id });
+      }
+    }
+
+    function leaveRoom() {
+      if (botTurnTimeout) clearTimeout(botTurnTimeout);
+
+      notifyDepartureToNetwork();
+
+      if (peer) {
+        try { peer.destroy(); } catch (e) {}
+        peer = null;
+      }
+      if (broadcastChannel) {
+        try { broadcastChannel.close(); } catch (e) {}
+        broadcastChannel = null;
+      }
+      peerConnections = {};
+      hostConnection = null;
+      selectedCardIds = [];
+
+      document.getElementById('roundResultModal').classList.add('hidden');
+      document.getElementById('gameScreen').classList.add('hidden');
+      document.getElementById('lobbyScreen').classList.add('hidden');
+      document.getElementById('welcomeScreen').classList.remove('hidden');
+      roomState.status = 'LOBBY';
+      showToast('Has salido de la sala. Un Bot tomó tu lugar.', 'info');
+    }
+
+    function copyRoomCode() {
+      const code = document.getElementById('lobbyRoomCodeDisplay').innerText;
+      const tempInput = document.createElement('textarea');
+      tempInput.value = code;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      try {
+        document.execCommand('copy');
+      } catch (e) {}
+      document.body.removeChild(tempInput);
+
+      document.getElementById('copyBtnText').innerText = '¡Copiado!';
+      setTimeout(() => document.getElementById('copyBtnText').innerText = 'Copiar', 2000);
+      showToast('Código copiado al portapapeles', 'info');
+    }
+
+    function toggleChatDrawer() {
+      soundClick();
+      const drawer = document.getElementById('chatDrawer');
+      drawer.classList.toggle('translate-x-full');
+      document.getElementById('unreadChatBadge').classList.add('hidden');
+    }
+
+    function sendChatMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      sendActionToHostOrExecute({
+        type: 'CHAT_MSG',
+        sender: localPlayer.name,
+        text
+      });
+      if (!localPlayer.isHost && !roomState.isSoloBot) {
+        appendChatMessage(localPlayer.name, text);
+      }
+      input.value = '';
+    }
+
+    function sendEmoji(emoji) {
+      const labelMap = {
+        '👋': '¡Hola!',
+        '🔥': '¡Fuego!',
+        '😂': '¡Jajaja!',
+        '😎': '¡Pro!',
+        '🎉': '¡Fiesta!'
+      };
+      sendQuickReaction(emoji, labelMap[emoji] || '');
+      sendActionToHostOrExecute({
+        type: 'CHAT_MSG',
+        sender: localPlayer.name,
+        text: emoji
+      });
+      if (!localPlayer.isHost && !roomState.isSoloBot) {
+        appendChatMessage(localPlayer.name, emoji);
+      }
+    }
+
+    function appendChatMessage(sender, text, isRemote = false) {
+      const chatMsgs = document.getElementById('chatMessages');
+      if (!chatMsgs) return;
+      const msg = document.createElement('div');
+      msg.className = 'bg-slate-800 border border-slate-700 p-2 rounded-xl text-slate-200';
+      msg.innerHTML = `<span class="font-bold text-amber-400">${sender}:</span> <span>${text}</span>`;
+      chatMsgs.appendChild(msg);
+      chatMsgs.scrollTop = chatMsgs.scrollHeight;
+
+      const drawer = document.getElementById('chatDrawer');
+      if (isRemote && drawer && drawer.classList.contains('translate-x-full')) {
+        document.getElementById('unreadChatBadge').classList.remove('hidden');
+      }
+    }
+  </script>
+</body>
+</html>
